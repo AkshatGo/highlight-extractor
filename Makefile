@@ -112,6 +112,29 @@ docker-down: ## Stop all containers
 docker-logs: ## Tail container logs
 	docker compose logs -f api
 
+# --- Deploy ---
+deploy-local: ## Run production server with docker compose (GPU)
+	docker compose -f deploy/docker-compose.prod.yml up -d
+
+deploy-local-down: ## Stop local production containers
+	docker compose -f deploy/docker-compose.prod.yml down
+
+deploy-ecs: ## Deploy to AWS ECS (requires AWS credentials + CloudFormation)
+	@echo "$(YELLOW)Deploying to AWS ECS...$(NC)"
+	aws cloudformation deploy \
+	  --template-file deploy/aws/ecs-gpu.yml \
+	  --stack-name highlight-extractor \
+	  --parameter-overrides ImageUri=$(IMAGE_URI) KeyPairName=$(KEY_PAIR) \
+	  --capabilities CAPABILITY_IAM
+
+# --- CI/CD ---
+ci-lint: ## Run CI lint checks
+	.venv/bin/ruff check src/ tests/
+	.venv/bin/ruff format --check src/ tests/
+
+ci-test: ## Run CI test suite
+	.venv/bin/pytest tests/ -v -m "not slow" --tb=short
+
 # --- Cleanup ---
 clean: ## Remove build artifacts and caches
 	rm -rf build/ dist/ *.egg-info .pytest_cache htmlcov .mypy_cache .ruff_cache

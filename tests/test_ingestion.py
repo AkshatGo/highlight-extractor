@@ -1,9 +1,11 @@
 """Tests for the ingestion module."""
 
-import pytest
-import numpy as np
 from pathlib import Path
-from highlight_extractor.utils.audio import validate_format, validate_duration
+
+import numpy as np
+import pytest
+
+from highlight_extractor.utils.audio import validate_format
 from highlight_extractor.utils.qc import QCResult, run_qc
 
 
@@ -50,4 +52,4 @@ class TestQCFunctions:
         audio = np.zeros(int(sr * duration), dtype=np.float32)
         result = run_qc(audio, sr, duration)
         assert result.pass_qc is True
-        assert result.snr_db is None or result.snr_db == 0.0 or result.snr_db == float('inf')
+        assert result.snr_db is None or result.snr_db == 0.0 or result.snr_db == float("inf")

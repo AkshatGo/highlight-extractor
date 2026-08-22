@@ -3,19 +3,19 @@
 Pure Python, no ML models, fast and deterministic.
 """
 
-import pytest
 from highlight_extractor.alignment import AlignedSegment
 from highlight_extractor.scoring.segment import (
-    derive_candidate_segments,
-    _split_on_pauses,
     _clamp_and_merge,
     _split_long_segment,
+    _split_on_pauses,
+    derive_candidate_segments,
 )
 
 
 def _make_word(text, start, end, confidence=0.95):
     """Create a mock Word-like object for testing."""
     from highlight_extractor.transcription.pipeline import Word
+
     return Word(text=text, start_s=start, end_s=end, confidence=confidence)
 
 
@@ -25,8 +25,12 @@ def _make_seg(start, end, speaker="SPEAKER_00", words=None, crosstalk=False):
         words = [_make_word("word", start + 0.1, end - 0.1)]
     text = " ".join(w.text for w in words)
     return AlignedSegment(
-        start_s=start, end_s=end, speaker=speaker,
-        text=text, words=words, crosstalk=crosstalk,
+        start_s=start,
+        end_s=end,
+        speaker=speaker,
+        text=text,
+        words=words,
+        crosstalk=crosstalk,
     )
 
 
@@ -105,11 +109,15 @@ class TestDeriveCandidateSegments:
 
 class TestSplitLongSegment:
     def test_short_segment_with_small_gaps_not_split(self):
-        seg = _make_seg(0, 10, words=[
-            _make_word("a", 0, 3),
-            _make_word("b", 3.1, 6),
-            _make_word("c", 6.1, 10),
-        ])
+        seg = _make_seg(
+            0,
+            10,
+            words=[
+                _make_word("a", 0, 3),
+                _make_word("b", 3.1, 6),
+                _make_word("c", 6.1, 10),
+            ],
+        )
         result = _split_long_segment(seg, max_clip_s=90.0)
         # Small gaps (< 0.3s) → no split at a sentence boundary
         assert len(result) == 1

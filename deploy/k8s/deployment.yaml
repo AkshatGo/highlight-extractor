@@ -1,0 +1,128 @@
+# deploy/k8s/deployment.yaml — Kubernetes Deployment
+# ====================================================
+# Deploy:
+#   kubectl apply -f deploy/k8s/
+#
+# Requirements:
+#   - NVIDIA device plugin installed (for GPU nodes)
+#   - Node labels: nvidia.com/gpu=true on GPU nodes
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: highlight-extractor
+  labels:
+    app: highlight-extractor
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: highlight-extractor
+  template:
+    metadata:
+      labels:
+        app: highlight-extractor
+    spec:
+      containers:
+        - name: api
+          image: highlight-extractor:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: HOST
+              value: "0.0.0.0"
+            - name: PORT
+              value: "8000"
+            - name: WORKERS
+              value: "2"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: ARTIFACT_STORE
+              value: "/app/artifacts"
+            - name: WHISPER_MODEL
+              value: "base"
+          resources:
+            requests:
+              cpu: "2"
+              memory: "8Gi"
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "4"
+              memory: "16Gi"
+              nvidia.com/gpu: 1
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: artifact-storage
+              mountPath: /app/artifacts
+      volumes:
+        - name: artifact-storage
+          persistentVolumeClaim:
+            claimName: highlight-artifacts-pvc
+      # Schedule on GPU nodes
+      nodeSelector:
+        nvidia.com/gpu: "true"
+      tolerations:
+        - key: nvidia.com/gpu
+          operator: Exists
+          effect: NoSchedule
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: highlight-extractor-service
+spec:
+  selector:
+    app: highlight-extractor
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+  type: LoadBalancer
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: highlight-artifacts-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  # Use fast storage for artifacts
+  # storageClassName: fast-ssd
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: highlight-extractor-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: highlight-extractor
+  minReplicas: 1
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

@@ -4,17 +4,17 @@ import json
 import logging
 import sys
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class StageTimer:
     """Context manager that records wall-clock time for a pipeline stage."""
 
-    def __init__(self, stage_name: str, job_id: Optional[str] = None):
+    def __init__(self, stage_name: str, job_id: str | None = None):
         self.stage_name = stage_name
         self.job_id = job_id
-        self.start_time: Optional[float] = None
-        self.end_time: Optional[float] = None
+        self.start_time: float | None = None
+        self.end_time: float | None = None
 
     def __enter__(self):
         self.start_time = time.time()
@@ -31,7 +31,7 @@ class StageTimer:
         end = self.end_time or time.time()
         return end - self.start_time
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "stage": self.stage_name,
             "elapsed_s": round(self.elapsed, 3),
@@ -43,7 +43,7 @@ class JSONFormatter(logging.Formatter):
     """Formats log records as single-line JSON for structured logging."""
 
     def format(self, record: logging.LogRecord) -> str:
-        log_entry: Dict[str, Any] = {
+        log_entry: dict[str, Any] = {
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),

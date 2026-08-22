@@ -2,18 +2,17 @@
 
 import io
 from pathlib import Path
-from typing import Tuple
 
 import librosa
 import numpy as np
 from pydub import AudioSegment
 
 TARGET_SR: int = 16000
-SUPPORTED_FORMATS: Tuple[str, ...] = (".wav", ".mp3", ".m4a", ".flac")
+SUPPORTED_FORMATS: tuple[str, ...] = (".wav", ".mp3", ".m4a", ".flac")
 MAX_DURATION_S: float = 4 * 3600  # 4 hours default
 
 
-def load_and_normalize(path: str | Path, target_sr: int = TARGET_SR) -> Tuple[np.ndarray, int]:
+def load_and_normalize(path: str | Path, target_sr: int = TARGET_SR) -> tuple[np.ndarray, int]:
     """Load audio, convert to mono, resample to target_sr.
 
     Returns:
@@ -42,9 +41,7 @@ def validate_format(path: str | Path) -> str:
     """Check that file extension is supported. Returns the extension."""
     ext = Path(path).suffix.lower()
     if ext not in SUPPORTED_FORMATS:
-        raise ValueError(
-            f"Unsupported format '{ext}'. Supported: {', '.join(SUPPORTED_FORMATS)}"
-        )
+        raise ValueError(f"Unsupported format '{ext}'. Supported: {', '.join(SUPPORTED_FORMATS)}")
     return ext
 
 
@@ -52,7 +49,5 @@ def validate_duration(path: str | Path, max_s: float = MAX_DURATION_S) -> float:
     """Check that audio does not exceed max_duration_s. Returns duration_s."""
     duration = get_audio_duration(path)
     if duration > max_s:
-        raise ValueError(
-            f"Audio duration {duration:.1f}s exceeds maximum {max_s:.1f}s"
-        )
+        raise ValueError(f"Audio duration {duration:.1f}s exceeds maximum {max_s:.1f}s")
     return duration

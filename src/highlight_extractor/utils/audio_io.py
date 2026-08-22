@@ -1,7 +1,7 @@
 """Shared audio I/O helpers — writing normalized audio to disk."""
 
-import soundfile as sf
 import numpy as np
+import soundfile as sf
 
 
 def write_wav(path: str, audio: np.ndarray, sr: int) -> None:

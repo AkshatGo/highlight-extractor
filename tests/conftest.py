@@ -1,4 +1,5 @@
 """Shared fixtures for tests."""
+
 import sys
 from pathlib import Path
 
@@ -6,17 +7,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import pytest
-import numpy as np
-from highlight_extractor.transcription.pipeline import (
-    TranscriptionResult,
-    Word,
-)
+
+from highlight_extractor.alignment import AlignedSegment
 from highlight_extractor.diarization.pipeline import (
     DiarizationResult,
     SpeakerTurn,
 )
-from highlight_extractor.alignment import AlignedSegment, AlignmentResult
-from highlight_extractor.scoring.features import SegmentFeatures
+from highlight_extractor.transcription.pipeline import (
+    TranscriptionResult,
+    Word,
+)
 
 
 def _make_word(text: str, start_s: float, end_s: float, confidence: float = 0.95) -> Word:
@@ -69,7 +69,9 @@ def sample_aligned_segments():
     """
     return [
         AlignedSegment(
-            start_s=0.0, end_s=2.0, speaker="SPEAKER_00",
+            start_s=0.0,
+            end_s=2.0,
+            speaker="SPEAKER_00",
             text="This is amazing news",
             words=[
                 _make_word("This", 0.0, 0.3),
@@ -80,7 +82,9 @@ def sample_aligned_segments():
             crosstalk=False,
         ),
         AlignedSegment(
-            start_s=3.0, end_s=5.0, speaker="SPEAKER_01",
+            start_s=3.0,
+            end_s=5.0,
+            speaker="SPEAKER_01",
             text="Wait seriously incredible",
             words=[
                 _make_word("Wait", 3.0, 3.3),
@@ -90,7 +94,9 @@ def sample_aligned_segments():
             crosstalk=True,
         ),
         AlignedSegment(
-            start_s=6.0, end_s=8.0, speaker="SPEAKER_00",
+            start_s=6.0,
+            end_s=8.0,
+            speaker="SPEAKER_00",
             text="I cannot believe this",
             words=[
                 _make_word("I", 6.0, 6.1),

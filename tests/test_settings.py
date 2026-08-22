@@ -1,12 +1,13 @@
 """Tests for settings module and health/readiness endpoints."""
 
 import os
-import pytest
 from unittest.mock import patch
 
-from highlight_extractor.utils.settings import Settings, load_settings
+import pytest
 from fastapi.testclient import TestClient
+
 from highlight_extractor.api.app import app
+from highlight_extractor.utils.settings import Settings, load_settings
 
 
 class TestSettings:

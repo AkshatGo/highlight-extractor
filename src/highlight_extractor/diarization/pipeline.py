@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 
 @dataclass
@@ -15,14 +14,14 @@ class SpeakerTurn:
 
 @dataclass
 class DiarizationResult:
-    turns: List[SpeakerTurn] = field(default_factory=list)
+    turns: list[SpeakerTurn] = field(default_factory=list)
     num_speakers: int = 0
     model_version: str = ""
 
 
 def run_diarization(
     audio_path: str | Path,
-    expected_num_speakers: Optional[int] = None,
+    expected_num_speakers: int | None = None,
 ) -> DiarizationResult:
     """Run speaker diarization on normalized audio.
 
@@ -36,7 +35,7 @@ def run_diarization(
         DiarizationResult with speaker turns, count, and model version.
     """
     from pyannote.audio import Pipeline
-    from pyannote.core import Annotation, Segment
+    from pyannote.core import Annotation
 
     pipeline = Pipeline.from_pretrained(
         "pyannote/speaker-diarization-3.1",
@@ -44,13 +43,15 @@ def run_diarization(
     )
 
     if expected_num_speakers is not None:
-        pipeline.instantiate({
-            "clustering": {
-                "method": "centroid",
-                "min_components": expected_num_speakers,
-                "max_components": expected_num_speakers,
+        pipeline.instantiate(
+            {
+                "clustering": {
+                    "method": "centroid",
+                    "min_components": expected_num_speakers,
+                    "max_components": expected_num_speakers,
+                }
             }
-        })
+        )
 
     diarization: Annotation = pipeline(str(audio_path))
 

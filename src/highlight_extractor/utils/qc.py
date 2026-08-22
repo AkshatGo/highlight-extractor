@@ -1,8 +1,9 @@
 """Quality checks for incoming audio files."""
 
-import numpy as np
-import librosa
 from dataclasses import dataclass
+
+import librosa
+import numpy as np
 
 
 @dataclass
@@ -16,7 +17,7 @@ class QCResult:
 
 def compute_snr(audio: np.ndarray) -> float:
     """Compute a simple SNR estimate from RMS of signal vs silence."""
-    rms = np.sqrt(np.mean(audio ** 2))
+    rms = np.sqrt(np.mean(audio**2))
     if rms < 1e-10:
         return 0.0
     # Estimate noise floor as the bottom 10th percentile of RMS in short windows
@@ -26,12 +27,12 @@ def compute_snr(audio: np.ndarray) -> float:
     frames_flat = frames.flatten()
     noise_floor = np.percentile(frames_flat, 10)
     if noise_floor < 1e-10:
-        return float('inf')
+        return float("inf")
     ratio = rms / noise_floor
     # If noise floor is within 1 dB of the signal, treat as infinite SNR
     # (happens with uniform synthetic signals like sine waves)
     if ratio < 1.15:  # < ~1.2 dB
-        return float('inf')
+        return float("inf")
     return 20 * np.log10(ratio)
 
 

@@ -4,8 +4,7 @@ All features are z-scored per episode before combination
 (handled in rank.py after extraction).
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -13,10 +12,26 @@ from highlight_extractor.alignment import AlignedSegment
 
 # Default keyword list for density scoring
 _DEFAULT_KEYWORDS = [
-    "but", "wow", "amazing", "wait", "seriously", "incredible",
-    "unbelievable", "shocking", "hilarious", "exactly", "right",
-    "absolutely", "definitely", "literally", "honestly",
-    "problem", "solution", "secret", "truth", "mistake",
+    "but",
+    "wow",
+    "amazing",
+    "wait",
+    "seriously",
+    "incredible",
+    "unbelievable",
+    "shocking",
+    "hilarious",
+    "exactly",
+    "right",
+    "absolutely",
+    "definitely",
+    "literally",
+    "honestly",
+    "problem",
+    "solution",
+    "secret",
+    "truth",
+    "mistake",
 ]
 
 
@@ -39,11 +54,11 @@ class SegmentFeatures:
 
 
 def extract_features(
-    segments: List[AlignedSegment],
+    segments: list[AlignedSegment],
     audio: np.ndarray,
     sr: int,
-    keywords: Optional[List[str]] = None,
-) -> List[SegmentFeatures]:
+    keywords: list[str] | None = None,
+) -> list[SegmentFeatures]:
     """Extract all feature signals from aligned segments.
 
     Args:
@@ -58,7 +73,7 @@ def extract_features(
     if keywords is None:
         keywords = _DEFAULT_KEYWORDS
 
-    features: List[SegmentFeatures] = []
+    features: list[SegmentFeatures] = []
 
     # Compute rolling stats per speaker (for energy z-score, speech rate)
     speaker_stats = _compute_speaker_stats(segments, audio, sr)
@@ -119,15 +134,15 @@ def extract_features(
 
 
 def _compute_speaker_stats(
-    segments: List[AlignedSegment],
+    segments: list[AlignedSegment],
     audio: np.ndarray,
     sr: int,
-) -> Dict[str, Dict[str, float]]:
+) -> dict[str, dict[str, float]]:
     """Compute per-speaker rolling means for energy (RMS) and speech rate."""
-    stats: Dict[str, Dict[str, float]] = {}
+    stats: dict[str, dict[str, float]] = {}
 
-    speaker_rms_values: Dict[str, List[float]] = {}
-    speaker_word_counts: Dict[str, List[float]] = {}
+    speaker_rms_values: dict[str, list[float]] = {}
+    speaker_word_counts: dict[str, list[float]] = {}
 
     for seg in segments:
         spk = seg.speaker
@@ -143,7 +158,7 @@ def _compute_speaker_stats(
         end_idx = min(int(seg.end_s * sr), len(audio))
         seg_audio = audio[start_idx:end_idx]
         if len(seg_audio) > 0:
-            rms = float(np.sqrt(np.mean(seg_audio ** 2)))
+            rms = float(np.sqrt(np.mean(seg_audio**2)))
             speaker_rms_values.setdefault(spk, []).append(rms)
 
     for spk in set(list(speaker_word_counts.keys()) + list(speaker_rms_values.keys())):
@@ -190,7 +205,7 @@ def _compute_rms(audio_segment: np.ndarray) -> float:
     """Compute RMS energy of an audio segment."""
     if len(audio_segment) == 0:
         return 0.0
-    return float(np.sqrt(np.mean(audio_segment ** 2)))
+    return float(np.sqrt(np.mean(audio_segment**2)))
 
 
 def _compute_pitch_variance(audio_segment: np.ndarray, sr: int) -> float:
@@ -212,7 +227,7 @@ def _compute_pitch_variance(audio_segment: np.ndarray, sr: int) -> float:
     return float(np.var(f0_clean))
 
 
-def _keyword_density(text: str, keywords: List[str]) -> float:
+def _keyword_density(text: str, keywords: list[str]) -> float:
     """Count keyword hits normalized by text length."""
     if not text:
         return 0.0

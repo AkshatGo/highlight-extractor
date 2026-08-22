@@ -1,7 +1,6 @@
 """Ingestion stage: validate, transcode, QC."""
 
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
 
@@ -9,12 +8,11 @@ from highlight_extractor.utils.audio import (
     load_and_normalize,
     validate_duration,
     validate_format,
-    TARGET_SR,
 )
 from highlight_extractor.utils.qc import QCResult, run_qc
 
 
-def run_ingestion(path: str | Path) -> Tuple[np.ndarray, int, float, QCResult]:
+def run_ingestion(path: str | Path) -> tuple[np.ndarray, int, float, QCResult]:
     """Run the full ingestion stage.
 
     Steps:

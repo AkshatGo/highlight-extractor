@@ -4,10 +4,9 @@ These tests use synthetic fabricated ASR word lists and fabricated RTTM-style
 diarization turns. No ML dependency, fast and deterministic.
 """
 
-import pytest
-from highlight_extractor.transcription.pipeline import TranscriptionResult, Word
-from highlight_extractor.diarization.pipeline import DiarizationResult, SpeakerTurn
 from highlight_extractor.alignment import run_alignment
+from highlight_extractor.diarization.pipeline import DiarizationResult, SpeakerTurn
+from highlight_extractor.transcription.pipeline import TranscriptionResult, Word
 
 
 def test_simple_two_speaker_alignment():

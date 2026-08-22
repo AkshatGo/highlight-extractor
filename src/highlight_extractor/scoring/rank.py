@@ -1,7 +1,7 @@
 """Ranking: composite scoring, temporal non-max suppression, output formatting."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -16,16 +16,16 @@ class Highlight:
     end_s: float
     speaker: str
     score: float
-    reasons: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
     transcript_excerpt: str = ""
     low_confidence: bool = False
 
 
 def compute_scores(
-    features: List[SegmentFeatures],
-    weights: Dict[str, Any],
-    transcripts: Optional[Dict[int, str]] = None,
-) -> List[Highlight]:
+    features: list[SegmentFeatures],
+    weights: dict[str, Any],
+    transcripts: dict[int, str] | None = None,
+) -> list[Highlight]:
     """Compute composite scores and return ranked Highlights.
 
     Steps:
@@ -47,8 +47,12 @@ def compute_scores(
 
     # Build feature matrix for z-scoring
     feature_keys = [
-        "sentiment_delta", "sentiment_extremity", "energy_zscore",
-        "pitch_variance", "speech_rate_delta", "keyword_density",
+        "sentiment_delta",
+        "sentiment_extremity",
+        "energy_zscore",
+        "pitch_variance",
+        "speech_rate_delta",
+        "keyword_density",
     ]
     matrix = []
     for f in features:
@@ -76,7 +80,7 @@ def compute_scores(
     w_confidence_penalty = weights.get("asr_confidence_penalty", 0.15)
     confidence_threshold = weights.get("asr_confidence_threshold", 0.5)
 
-    highlights: List[Highlight] = []
+    highlights: list[Highlight] = []
     reason_threshold = 1.0  # z > 1.0 contributes a reason string
 
     for i, f in enumerate(features):
@@ -109,7 +113,7 @@ def compute_scores(
             ("speech_rate_delta", "speech rate shift"),
             ("keyword_density", "keyword match"),
         ]
-        for idx, (key, label) in enumerate(reason_labels):
+        for idx, (_key, label) in enumerate(reason_labels):
             if idx < len(z_row) and abs(z_row[idx]) > reason_threshold:
                 reasons.append(label)
         if f.crosstalk_flag:
@@ -136,10 +140,10 @@ def compute_scores(
 
 
 def temporal_nms(
-    highlights: List[Highlight],
+    highlights: list[Highlight],
     top_n: int = 15,
     overlap_threshold: float = 0.20,
-) -> List[Highlight]:
+) -> list[Highlight]:
     """Temporal non-max suppression: greedily select diverse top-N.
 
     Args:
@@ -151,7 +155,7 @@ def temporal_nms(
     Returns:
         Up to top_n non-overlapping highlights.
     """
-    accepted: List[Highlight] = []
+    accepted: list[Highlight] = []
 
     for hl in highlights:
         if len(accepted) >= top_n:
@@ -186,12 +190,12 @@ def _compute_overlap(a: Highlight, b: Highlight) -> float:
 
 
 def rank_highlights(
-    features: List[SegmentFeatures],
-    weights: Dict[str, Any],
+    features: list[SegmentFeatures],
+    weights: dict[str, Any],
     top_n: int = 15,
     overlap_threshold: float = 0.20,
-    transcripts: Optional[Dict[int, str]] = None,
-) -> List[Highlight]:
+    transcripts: dict[int, str] | None = None,
+) -> list[Highlight]:
     """Full ranking pipeline: compute scores → NMS → return.
 
     Args:

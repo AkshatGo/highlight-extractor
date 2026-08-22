@@ -3,7 +3,6 @@
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +17,15 @@ class Word:
 
 @dataclass
 class TranscriptionResult:
-    words: List[Word] = field(default_factory=list)
-    language: Optional[str] = None
+    words: list[Word] = field(default_factory=list)
+    language: str | None = None
     model_version: str = ""
 
 
 def _create_model(device: str = "auto", compute_type: str = "float16"):
     """Create a WhisperModel with the given device/compute_type."""
     from faster_whisper import WhisperModel
+
     return WhisperModel("base", device=device, compute_type=compute_type)
 
 
@@ -37,9 +37,7 @@ def _build_result(segments, info, model_version: str) -> TranscriptionResult:
     )
     for seg in segments:
         for w in seg.words:
-            result.words.append(
-                Word(text=w.word.strip(), start_s=w.start, end_s=w.end, confidence=w.probability)
-            )
+            result.words.append(Word(text=w.word.strip(), start_s=w.start, end_s=w.end, confidence=w.probability))
     return result
 
 

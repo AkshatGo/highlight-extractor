@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from dataclasses import field
 from enum import Enum
-from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class JobStatus(str, Enum):
@@ -23,8 +22,8 @@ class JobStatus(str, Enum):
 
 class StageEntry(BaseModel):
     stage: str
-    started_at: Optional[str] = None
-    ended_at: Optional[str] = None
+    started_at: str | None = None
+    ended_at: str | None = None
 
 
 class ErrorBody(BaseModel):
@@ -35,11 +34,11 @@ class ErrorBody(BaseModel):
 class JobResponse(BaseModel):
     job_id: str
     status: JobStatus
-    created_at: Optional[str] = None
-    stage_history: List[StageEntry] = field(default_factory=list)
-    quality_warning: Optional[str] = None
-    failed_stage: Optional[str] = None
-    error: Optional[ErrorBody] = None
+    created_at: str | None = None
+    stage_history: list[StageEntry] = field(default_factory=list)
+    quality_warning: str | None = None
+    failed_stage: str | None = None
+    error: ErrorBody | None = None
 
 
 class HighlightItem(BaseModel):
@@ -47,7 +46,7 @@ class HighlightItem(BaseModel):
     end_s: float
     speaker: str
     score: float
-    reasons: List[str] = []
+    reasons: list[str] = []
     transcript_excerpt: str = ""
     low_confidence: bool = False
 
@@ -56,8 +55,8 @@ class HighlightsResponse(BaseModel):
     job_id: str
     audio_duration_s: float
     num_speakers_detected: int
-    quality_warning: Optional[str] = None
-    highlights: List[HighlightItem] = []
+    quality_warning: str | None = None
+    highlights: list[HighlightItem] = []
 
 
 class TranscriptWord(BaseModel):
@@ -72,26 +71,26 @@ class TranscriptSegment(BaseModel):
     end_s: float
     speaker: str
     text: str
-    words: List[TranscriptWord] = []
+    words: list[TranscriptWord] = []
 
 
 class TranscriptResponse(BaseModel):
     job_id: str
-    segments: List[TranscriptSegment] = []
+    segments: list[TranscriptSegment] = []
 
 
 class RescoreRequest(BaseModel):
-    top_n: Optional[int] = None
-    min_clip_s: Optional[float] = None
-    max_clip_s: Optional[float] = None
-    weights_override: Optional[Dict[str, float]] = None
+    top_n: int | None = None
+    min_clip_s: float | None = None
+    max_clip_s: float | None = None
+    weights_override: dict[str, float] | None = None
 
 
 class RescoreResponse(BaseModel):
     job_id: str
     source_job_id: str
     status: str
-    created_at: Optional[str] = None
+    created_at: str | None = None
 
 
 class ErrorResponse(BaseModel):

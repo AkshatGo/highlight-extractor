@@ -6,8 +6,6 @@ Production deployments set these via .env, Docker env, or process manager.
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import List, Optional
 
 
 @dataclass(frozen=True)
@@ -22,9 +20,9 @@ class Settings:
     reload: bool = False
 
     # CORS
-    cors_origins: List[str] = field(default_factory=lambda: ["*"])
-    cors_methods: List[str] = field(default_factory=lambda: ["*"])
-    cors_headers: List[str] = field(default_factory=lambda: ["*"])
+    cors_origins: list[str] = field(default_factory=lambda: ["*"])
+    cors_methods: list[str] = field(default_factory=lambda: ["*"])
+    cors_headers: list[str] = field(default_factory=lambda: ["*"])
 
     # Upload limits
     max_upload_size_mb: int = 500
@@ -42,7 +40,7 @@ class Settings:
     artifact_store_path: str = "/tmp/highlight_artifacts"
 
     # Scoring
-    scoring_weights_path: Optional[str] = None  # None = default config path
+    scoring_weights_path: str | None = None  # None = default config path
 
     # Models (for pre-download / caching)
     whisper_model: str = "base"
@@ -76,7 +74,8 @@ def load_settings() -> Settings:
         DIARIZATION_MODEL → diarization_model (default: pyannote/speaker-diarization-3.1)
         PIPELINE_TIMEOUT  → pipeline_timeout_s (default: 7200)
     """
-    def _list_env(key: str, default: str) -> List[str]:
+
+    def _list_env(key: str, default: str) -> list[str]:
         val = os.environ.get(key, "")
         if not val or val.strip() == "*":
             return [item.strip() for item in default.split(",")]

@@ -5,10 +5,9 @@ with no ML dependency and edge cases (boundary words, overlapping turns, gaps).
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
-from highlight_extractor.transcription.pipeline import TranscriptionResult, Word
 from highlight_extractor.diarization.pipeline import DiarizationResult, SpeakerTurn
+from highlight_extractor.transcription.pipeline import TranscriptionResult, Word
 
 
 @dataclass
@@ -17,13 +16,13 @@ class AlignedSegment:
     end_s: float
     speaker: str
     text: str
-    words: List[Word] = field(default_factory=list)
+    words: list[Word] = field(default_factory=list)
     crosstalk: bool = False
 
 
 @dataclass
 class AlignmentResult:
-    segments: List[AlignedSegment] = field(default_factory=list)
+    segments: list[AlignedSegment] = field(default_factory=list)
 
 
 def _word_overlap(word: Word, turn: SpeakerTurn) -> float:
@@ -33,12 +32,12 @@ def _word_overlap(word: Word, turn: SpeakerTurn) -> float:
     return max(0.0, end - start)
 
 
-def _assign_word(word: Word, turns: List[SpeakerTurn]) -> Optional[SpeakerTurn]:
+def _assign_word(word: Word, turns: list[SpeakerTurn]) -> SpeakerTurn | None:
     """Assign a word to the speaker turn with the most overlap.
 
     Returns None if no turn overlaps (shouldn't happen with good alignment).
     """
-    best_turn: Optional[SpeakerTurn] = None
+    best_turn: SpeakerTurn | None = None
     best_overlap = 0.0
     for turn in turns:
         overlap = _word_overlap(word, turn)
@@ -78,25 +77,27 @@ def run_alignment(
 
     if not diarization.turns:
         # No diarization — fall back to single-speaker
-        turns = [SpeakerTurn(
-            start_s=transcription.words[0].start_s,
-            end_s=transcription.words[-1].end_s,
-            speaker="SPEAKER_00",
-        )]
+        turns = [
+            SpeakerTurn(
+                start_s=transcription.words[0].start_s,
+                end_s=transcription.words[-1].end_s,
+                speaker="SPEAKER_00",
+            )
+        ]
     else:
         turns = diarization.turns
 
     # Assign each word to a speaker
-    word_speaker: List[Tuple[Word, str]] = []
+    word_speaker: list[tuple[Word, str]] = []
     for w in transcription.words:
         assigned = _assign_word(w, turns)
         speaker = assigned.speaker if assigned else "SPEAKER_00"
         word_speaker.append((w, speaker))
 
     # Group consecutive same-speaker words, splitting on long pauses
-    segments: List[AlignedSegment] = []
-    current_words: List[Word] = []
-    current_speaker: Optional[str] = None
+    segments: list[AlignedSegment] = []
+    current_words: list[Word] = []
+    current_speaker: str | None = None
 
     def _flush():
         nonlocal current_words, current_speaker

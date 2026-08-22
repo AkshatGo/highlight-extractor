@@ -1,16 +1,14 @@
 """In-process job manager: queue, artifact store, and pipeline orchestrator."""
 
 import json
-import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
-from highlight_extractor.alignment import AlignedSegment, AlignmentResult, run_alignment
-from highlight_extractor.scoring.segment import derive_candidate_segments
+from highlight_extractor.alignment import AlignmentResult, run_alignment
 from highlight_extractor.api.models import (
     ErrorBody,
     HighlightItem,
@@ -24,8 +22,9 @@ from highlight_extractor.diarization.pipeline import DiarizationResult, run_diar
 from highlight_extractor.ingestion.pipeline import run_ingestion
 from highlight_extractor.scoring.features import SegmentFeatures, extract_features
 from highlight_extractor.scoring.rank import Highlight, rank_highlights
+from highlight_extractor.scoring.segment import derive_candidate_segments
 from highlight_extractor.transcription.pipeline import TranscriptionResult, run_transcription
-from highlight_extractor.utils.config import load_scoring_weights, merge_weights
+from highlight_extractor.utils.config import load_scoring_weights
 
 
 class JobRecord:
@@ -38,7 +37,7 @@ class JobRecord:
         top_n: int = 15,
         min_clip_s: float = 12.0,
         max_clip_s: float = 90.0,
-        expected_num_speakers: Optional[int] = None,
+        expected_num_speakers: int | None = None,
     ):
         self.job_id = job_id
         self.audio_path = audio_path
@@ -48,20 +47,20 @@ class JobRecord:
         self.expected_num_speakers = expected_num_speakers
         self.status = JobStatus.QUEUED
         self.created_at = datetime.now(timezone.utc).isoformat()
-        self.stage_history: List[StageEntry] = [StageEntry(stage="QUEUED", started_at=self.created_at)]
-        self.quality_warning: Optional[str] = None
-        self.failed_stage: Optional[str] = None
-        self.error: Optional[ErrorBody] = None
+        self.stage_history: list[StageEntry] = [StageEntry(stage="QUEUED", started_at=self.created_at)]
+        self.quality_warning: str | None = None
+        self.failed_stage: str | None = None
+        self.error: ErrorBody | None = None
 
         # Cached artifacts
-        self._audio: Optional[np.ndarray] = None
-        self._sr: Optional[int] = None
-        self._duration_s: Optional[float] = None
-        self._transcription: Optional[TranscriptionResult] = None
-        self._diarization: Optional[DiarizationResult] = None
-        self._aligned: Optional[AlignmentResult] = None
-        self._features: Optional[List[SegmentFeatures]] = None
-        self._highlights: Optional[List[Highlight]] = None
+        self._audio: np.ndarray | None = None
+        self._sr: int | None = None
+        self._duration_s: float | None = None
+        self._transcription: TranscriptionResult | None = None
+        self._diarization: DiarizationResult | None = None
+        self._aligned: AlignmentResult | None = None
+        self._features: list[SegmentFeatures] | None = None
+        self._highlights: list[Highlight] | None = None
 
     def transition_to(self, status: JobStatus):
         """Record state transition with timestamp."""
@@ -107,7 +106,7 @@ class ArtifactStore:
         with open(path, "w") as f:
             json.dump(data, f, indent=2, default=str)
 
-    def load_json(self, job_id: str, name: str) -> Optional[Any]:
+    def load_json(self, job_id: str, name: str) -> Any | None:
         path = self._job_dir(job_id) / f"{name}.json"
         if not path.exists():
             return None
@@ -118,9 +117,9 @@ class ArtifactStore:
 class JobManager:
     """Orchestrates the pipeline for a single job. Thread-safe for in-process use."""
 
-    def __init__(self, artifact_store: Optional[ArtifactStore] = None):
+    def __init__(self, artifact_store: ArtifactStore | None = None):
         self.store = artifact_store or ArtifactStore()
-        self._jobs: Dict[str, JobRecord] = {}
+        self._jobs: dict[str, JobRecord] = {}
 
     def submit(
         self,
@@ -128,7 +127,7 @@ class JobManager:
         top_n: int = 15,
         min_clip_s: float = 12.0,
         max_clip_s: float = 90.0,
-        expected_num_speakers: Optional[int] = None,
+        expected_num_speakers: int | None = None,
     ) -> str:
         job_id = str(uuid.uuid4())
         record = JobRecord(
@@ -142,7 +141,7 @@ class JobManager:
         self._jobs[job_id] = record
         return job_id
 
-    def get_job(self, job_id: str) -> Optional[JobRecord]:
+    def get_job(self, job_id: str) -> JobRecord | None:
         return self._jobs.get(job_id)
 
     def run_pipeline(self, job_id: str):
@@ -160,15 +159,20 @@ class JobManager:
             record._duration_s = duration_s
             if qc.quality_warning:
                 record.quality_warning = qc.quality_warning
-            self.store.save_json(job_id, "qc", {
-                "snr_db": qc.snr_db,
-                "clipping_fraction": qc.clipping_fraction,
-                "duration_s": qc.duration_s,
-                "quality_warning": qc.quality_warning,
-            })
+            self.store.save_json(
+                job_id,
+                "qc",
+                {
+                    "snr_db": qc.snr_db,
+                    "clipping_fraction": qc.clipping_fraction,
+                    "duration_s": qc.duration_s,
+                    "quality_warning": qc.quality_warning,
+                },
+            )
 
             # Save normalized audio for reuse
             import soundfile as sf
+
             norm_path = str(self.store._job_dir(job_id) / "audio_normalized.wav")
             sf.write(norm_path, audio, sr, subtype="PCM_16")
 
@@ -176,41 +180,56 @@ class JobManager:
             record.transition_to(JobStatus.TRANSCRIBING)
             transcription = run_transcription(norm_path)
             record._transcription = transcription
-            self.store.save_json(job_id, "transcript", {
-                "words": [
-                    {"text": w.text, "start_s": w.start_s, "end_s": w.end_s, "confidence": w.confidence}
-                    for w in transcription.words
-                ],
-                "language": transcription.language,
-                "model_version": transcription.model_version,
-            })
+            self.store.save_json(
+                job_id,
+                "transcript",
+                {
+                    "words": [
+                        {"text": w.text, "start_s": w.start_s, "end_s": w.end_s, "confidence": w.confidence}
+                        for w in transcription.words
+                    ],
+                    "language": transcription.language,
+                    "model_version": transcription.model_version,
+                },
+            )
 
             # --- DIARIZING ---
             record.transition_to(JobStatus.DIARIZING)
             diarization = run_diarization(norm_path, expected_num_speakers=record.expected_num_speakers)
             record._diarization = diarization
-            self.store.save_json(job_id, "diarization", {
-                "turns": [
-                    {"start_s": t.start_s, "end_s": t.end_s, "speaker": t.speaker, "overlap": t.overlap}
-                    for t in diarization.turns
-                ],
-                "num_speakers": diarization.num_speakers,
-                "model_version": diarization.model_version,
-            })
+            self.store.save_json(
+                job_id,
+                "diarization",
+                {
+                    "turns": [
+                        {"start_s": t.start_s, "end_s": t.end_s, "speaker": t.speaker, "overlap": t.overlap}
+                        for t in diarization.turns
+                    ],
+                    "num_speakers": diarization.num_speakers,
+                    "model_version": diarization.model_version,
+                },
+            )
 
             # --- ALIGNING ---
             record.transition_to(JobStatus.ALIGNING)
             aligned = run_alignment(transcription, diarization)
             record._aligned = aligned
-            self.store.save_json(job_id, "aligned_segments", {
-                "segments": [
-                    {
-                        "start_s": s.start_s, "end_s": s.end_s, "speaker": s.speaker,
-                        "text": s.text, "crosstalk": s.crosstalk,
-                    }
-                    for s in aligned.segments
-                ],
-            })
+            self.store.save_json(
+                job_id,
+                "aligned_segments",
+                {
+                    "segments": [
+                        {
+                            "start_s": s.start_s,
+                            "end_s": s.end_s,
+                            "speaker": s.speaker,
+                            "text": s.text,
+                            "crosstalk": s.crosstalk,
+                        }
+                        for s in aligned.segments
+                    ],
+                },
+            )
 
             # --- EXTRACTING FEATURES ---
             record.transition_to(JobStatus.EXTRACTING_FEATURES)
@@ -221,18 +240,27 @@ class JobManager:
             )
             features = extract_features(candidates, audio, sr)
             record._features = features
-            self.store.save_json(job_id, "features", [
-                {
-                    "segment_id": f.segment_id, "start_s": f.start_s, "end_s": f.end_s,
-                    "speaker": f.speaker, "sentiment_delta": f.sentiment_delta,
-                    "sentiment_extremity": f.sentiment_extremity,
-                    "energy_zscore": f.energy_zscore, "pitch_variance": f.pitch_variance,
-                    "speech_rate_delta": f.speech_rate_delta,
-                    "keyword_density": f.keyword_density,
-                    "crosstalk_flag": f.crosstalk_flag, "asr_confidence": f.asr_confidence,
-                }
-                for f in features
-            ])
+            self.store.save_json(
+                job_id,
+                "features",
+                [
+                    {
+                        "segment_id": f.segment_id,
+                        "start_s": f.start_s,
+                        "end_s": f.end_s,
+                        "speaker": f.speaker,
+                        "sentiment_delta": f.sentiment_delta,
+                        "sentiment_extremity": f.sentiment_extremity,
+                        "energy_zscore": f.energy_zscore,
+                        "pitch_variance": f.pitch_variance,
+                        "speech_rate_delta": f.speech_rate_delta,
+                        "keyword_density": f.keyword_density,
+                        "crosstalk_flag": f.crosstalk_flag,
+                        "asr_confidence": f.asr_confidence,
+                    }
+                    for f in features
+                ],
+            )
 
             # --- SCORING ---
             record.transition_to(JobStatus.SCORING)
@@ -245,15 +273,22 @@ class JobManager:
                 transcripts=transcript_map,
             )
             record._highlights = highlights
-            self.store.save_json(job_id, "highlights", [
-                {
-                    "start_s": h.start_s, "end_s": h.end_s, "speaker": h.speaker,
-                    "score": h.score, "reasons": h.reasons,
-                    "transcript_excerpt": h.transcript_excerpt,
-                    "low_confidence": h.low_confidence,
-                }
-                for h in highlights
-            ])
+            self.store.save_json(
+                job_id,
+                "highlights",
+                [
+                    {
+                        "start_s": h.start_s,
+                        "end_s": h.end_s,
+                        "speaker": h.speaker,
+                        "score": h.score,
+                        "reasons": h.reasons,
+                        "transcript_excerpt": h.transcript_excerpt,
+                        "low_confidence": h.low_confidence,
+                    }
+                    for h in highlights
+                ],
+            )
 
             # --- DONE ---
             record.transition_to(JobStatus.DONE)
@@ -262,7 +297,7 @@ class JobManager:
             current_stage = record.status.value
             record.fail(current_stage, "internal_error", str(e))
 
-    def get_highlights(self, job_id: str) -> Optional[List[HighlightItem]]:
+    def get_highlights(self, job_id: str) -> list[HighlightItem] | None:
         """Return scored highlights as Pydantic models."""
         record = self.get_job(job_id)
         if record is None or record._highlights is None:
@@ -280,7 +315,7 @@ class JobManager:
             for h in record._highlights
         ]
 
-    def get_transcript(self, job_id: str) -> Optional[List[TranscriptSegment]]:
+    def get_transcript(self, job_id: str) -> list[TranscriptSegment] | None:
         """Return aligned transcript segments."""
         record = self.get_job(job_id)
         if record is None or record._aligned is None:

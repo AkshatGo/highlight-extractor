@@ -9,17 +9,15 @@ Segmentation before scoring:
 6. Discard zero-speech segments.
 """
 
-from typing import List
-
 from highlight_extractor.alignment import AlignedSegment
 
 
 def derive_candidate_segments(
-    aligned_segments: List[AlignedSegment],
+    aligned_segments: list[AlignedSegment],
     min_clip_s: float = 12.0,
     max_clip_s: float = 90.0,
     min_pause_s: float = 0.7,
-) -> List[AlignedSegment]:
+) -> list[AlignedSegment]:
     """Derive candidate segments from aligned segments for scoring.
 
     Steps:
@@ -42,7 +40,7 @@ def derive_candidate_segments(
         return []
 
     # Step 1: Split segments on internal pauses
-    split_segments: List[AlignedSegment] = []
+    split_segments: list[AlignedSegment] = []
     for seg in aligned_segments:
         if not seg.words:
             continue
@@ -52,7 +50,7 @@ def derive_candidate_segments(
     candidates = _clamp_and_merge(split_segments, min_clip_s, max_clip_s)
 
     # Step 4: Split any remaining over-length segments
-    final: List[AlignedSegment] = []
+    final: list[AlignedSegment] = []
     for seg in candidates:
         dur = seg.end_s - seg.start_s
         if dur > max_clip_s:
@@ -65,14 +63,12 @@ def derive_candidate_segments(
     return [seg for seg in final if seg.words]
 
 
-def _split_on_pauses(
-    segment: AlignedSegment, min_pause_s: float
-) -> List[AlignedSegment]:
+def _split_on_pauses(segment: AlignedSegment, min_pause_s: float) -> list[AlignedSegment]:
     """Split a segment on internal pauses >= min_pause_s."""
     if not segment.words:
         return []
 
-    result: List[AlignedSegment] = []
+    result: list[AlignedSegment] = []
     current_words = [segment.words[0]]
 
     for i in range(1, len(segment.words)):
@@ -90,9 +86,7 @@ def _split_on_pauses(
     return result
 
 
-def _make_segment(
-    original: AlignedSegment, words: List
-) -> AlignedSegment:
+def _make_segment(original: AlignedSegment, words: list) -> AlignedSegment:
     """Create a new AlignedSegment from a subset of words."""
     text = " ".join(w.text for w in words)
     return AlignedSegment(
@@ -106,36 +100,37 @@ def _make_segment(
 
 
 def _clamp_and_merge(
-    segments: List[AlignedSegment],
+    segments: list[AlignedSegment],
     min_clip_s: float,
     max_clip_s: float,
-) -> List[AlignedSegment]:
+) -> list[AlignedSegment]:
     """Clamp segments to [min_clip_s, max_clip_s] and merge short ones."""
     if not segments:
         return []
 
     # First, clamp long segments
-    clamped: List[AlignedSegment] = []
+    clamped: list[AlignedSegment] = []
     for seg in segments:
         dur = seg.end_s - seg.start_s
         if dur > max_clip_s:
             # Truncate to max_clip_s (split will happen later)
-            clamped.append(AlignedSegment(
-                start_s=seg.start_s,
-                end_s=seg.start_s + max_clip_s,
-                speaker=seg.speaker,
-                text=seg.text[:int(len(seg.text) * max_clip_s / dur)],
-                words=seg.words[:int(len(seg.words) * max_clip_s / dur)] or seg.words[:1],
-                crosstalk=seg.crosstalk,
-            ))
+            clamped.append(
+                AlignedSegment(
+                    start_s=seg.start_s,
+                    end_s=seg.start_s + max_clip_s,
+                    speaker=seg.speaker,
+                    text=seg.text[: int(len(seg.text) * max_clip_s / dur)],
+                    words=seg.words[: int(len(seg.words) * max_clip_s / dur)] or seg.words[:1],
+                    crosstalk=seg.crosstalk,
+                )
+            )
         else:
             clamped.append(seg)
 
     # Then merge short segments with neighbors
-    merged: List[AlignedSegment] = [clamped[0]]
+    merged: list[AlignedSegment] = [clamped[0]]
     for seg in clamped[1:]:
         prev = merged[-1]
-        combined_dur = seg.end_s - prev.start_s
         if (prev.end_s - prev.start_s) < min_clip_s and prev.speaker == seg.speaker:
             # Merge
             merged[-1] = AlignedSegment(
@@ -152,9 +147,7 @@ def _clamp_and_merge(
     return merged
 
 
-def _split_long_segment(
-    segment: AlignedSegment, max_clip_s: float
-) -> List[AlignedSegment]:
+def _split_long_segment(segment: AlignedSegment, max_clip_s: float) -> list[AlignedSegment]:
     """Split a segment longer than max_clip_s at the best internal pause.
 
     Only splits if a suitable internal pause (>0.3s) is found near the midpoint.
@@ -183,7 +176,7 @@ def _split_long_segment(
     words_a = segment.words[:best_split_idx]
     words_b = segment.words[best_split_idx:]
 
-    result: List[AlignedSegment] = []
+    result: list[AlignedSegment] = []
     if words_a:
         result.append(_make_segment(segment, words_a))
     if words_b:

@@ -1,35 +1,35 @@
 """Tests for scoring/ranking — pure Python, synthetic features, no ML models."""
 
-import pytest
 from highlight_extractor.scoring.features import SegmentFeatures
 from highlight_extractor.scoring.rank import (
-    compute_scores,
-    temporal_nms,
     _compute_overlap,
+    compute_scores,
     rank_highlights,
+    temporal_nms,
 )
 from highlight_extractor.utils.config import load_scoring_weights
 
 
 def _make_features(count: int) -> list:
     """Create synthetic features with known values."""
-    base_weights = load_scoring_weights()
     features = []
     for i in range(count):
-        features.append(SegmentFeatures(
-            segment_id=i,
-            start_s=float(i * 20),
-            end_s=float(i * 20 + 15),
-            speaker=f"SPEAKER_{i % 3:02d}",
-            sentiment_delta=0.5 if i % 2 == 0 else 0.1,
-            sentiment_extremity=0.8 if i % 2 == 0 else 0.2,
-            energy_zscore=1.0 if i % 2 == 0 else -0.5,
-            pitch_variance=0.3 if i % 2 == 0 else 0.05,
-            speech_rate_delta=0.2 if i % 3 == 0 else -0.1,
-            keyword_density=0.05 if i % 2 == 0 else 0.0,
-            crosstalk_flag=(i % 3 == 1),
-            asr_confidence=0.95 if i != 0 else 0.3,  # first segment has low conf
-        ))
+        features.append(
+            SegmentFeatures(
+                segment_id=i,
+                start_s=float(i * 20),
+                end_s=float(i * 20 + 15),
+                speaker=f"SPEAKER_{i % 3:02d}",
+                sentiment_delta=0.5 if i % 2 == 0 else 0.1,
+                sentiment_extremity=0.8 if i % 2 == 0 else 0.2,
+                energy_zscore=1.0 if i % 2 == 0 else -0.5,
+                pitch_variance=0.3 if i % 2 == 0 else 0.05,
+                speech_rate_delta=0.2 if i % 3 == 0 else -0.1,
+                keyword_density=0.05 if i % 2 == 0 else 0.0,
+                crosstalk_flag=(i % 3 == 1),
+                asr_confidence=0.95 if i != 0 else 0.3,  # first segment has low conf
+            )
+        )
     return features
 
 
@@ -96,22 +96,35 @@ class TestTemporalNMS:
 
 class TestComputeOverlap:
     def test_no_overlap(self):
-        hl = lambda s, e: type("HL", (), {"start_s": s, "end_s": e, "speaker": "", "score": 0.0, "reasons": [], "transcript_excerpt": "", "low_confidence": False})
-        # We use _compute_overlap as a standalone
-        result = _compute_overlap(hl(0, 5), hl(10, 15))
+        result = _compute_overlap(_hl_obj(0, 5), _hl_obj(10, 15))
         assert result == 0.0
 
     def test_partial_overlap(self):
-        hl = lambda s, e: type("HL", (), {"start_s": s, "end_s": e, "speaker": "", "score": 0.0, "reasons": [], "transcript_excerpt": "", "low_confidence": False})
-        result = _compute_overlap(hl(0, 10), hl(5, 15))
-        # overlap 5s, min_duration 10s → 0.5
+        result = _compute_overlap(_hl_obj(0, 10), _hl_obj(5, 15))
+        # overlap 5s, min_duration 10s -> 0.5
         assert result == 0.5
 
     def test_contained(self):
-        hl = lambda s, e: type("HL", (), {"start_s": s, "end_s": e, "speaker": "", "score": 0.0, "reasons": [], "transcript_excerpt": "", "low_confidence": False})
-        result = _compute_overlap(hl(0, 20), hl(5, 15))
-        # overlap 10s, min_duration 10s → 1.0
+        result = _compute_overlap(_hl_obj(0, 20), _hl_obj(5, 15))
+        # overlap 10s, min_duration 10s -> 1.0
         assert result == 1.0
+
+
+def _hl_obj(start_s, end_s):
+    """Create a mock Highlight-like object for overlap tests."""
+    return type(
+        "HL",
+        (),
+        {
+            "start_s": start_s,
+            "end_s": end_s,
+            "speaker": "",
+            "score": 0.0,
+            "reasons": [],
+            "transcript_excerpt": "",
+            "low_confidence": False,
+        },
+    )()
 
 
 class TestComputeHighlights:

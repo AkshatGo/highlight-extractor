@@ -1,12 +1,12 @@
 """Tests for the FastAPI API layer — mocked pipeline, no real models."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 
 from highlight_extractor.api.app import app
-from highlight_extractor.api.models import JobStatus, HighlightItem
-
+from highlight_extractor.api.models import JobStatus
 
 client = TestClient(app)
 
@@ -44,10 +44,10 @@ def test_get_highlights_before_done():
 @pytest.mark.slow
 def test_create_and_poll_job_e2e():
     """End-to-end test with a real small audio file. Requires GPU/models."""
-    import librosa
-    import numpy as np
-    import tempfile
     import os
+    import tempfile
+
+    import numpy as np
 
     # Generate 15 seconds of simple test audio
     sr = 16000
@@ -55,11 +55,12 @@ def test_create_and_poll_job_e2e():
     t = np.linspace(0, duration, int(sr * duration), endpoint=False)
     # Two tones: first half "speaker A", second half "speaker B"
     audio = np.zeros_like(t)
-    audio[:len(t)//2] = 0.1 * np.sin(2 * np.pi * 200 * t[:len(t)//2])
-    audio[len(t)//2:] = 0.1 * np.sin(2 * np.pi * 300 * t[len(t)//2:])
+    audio[: len(t) // 2] = 0.1 * np.sin(2 * np.pi * 200 * t[: len(t) // 2])
+    audio[len(t) // 2 :] = 0.1 * np.sin(2 * np.pi * 300 * t[len(t) // 2 :])
 
     tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
     import soundfile as sf
+
     sf.write(tmp.name, audio, sr)
     tmp.close()
 
@@ -76,6 +77,7 @@ def test_create_and_poll_job_e2e():
 
         # Poll until done or timeout
         import time
+
         for _ in range(60):
             resp = client.get(f"/v1/jobs/{job_id}")
             status = resp.json()["status"]

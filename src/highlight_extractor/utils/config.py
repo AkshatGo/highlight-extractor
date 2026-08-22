@@ -1,15 +1,14 @@
 """Configuration loading from YAML files."""
 
-import os
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 
 _DEFAULT_WEIGHTS_PATH = Path(__file__).parents[3] / "config" / "scoring_weights.yaml"
 
 
-def load_scoring_weights(path: str | Path | None = None) -> Dict[str, Any]:
+def load_scoring_weights(path: str | Path | None = None) -> dict[str, Any]:
     """Load scoring weights from YAML.
 
     Args:
@@ -22,11 +21,11 @@ def load_scoring_weights(path: str | Path | None = None) -> Dict[str, Any]:
     if path is None:
         path = _DEFAULT_WEIGHTS_PATH
     with open(path) as f:
-        weights: Dict[str, Any] = yaml.safe_load(f)
+        weights: dict[str, Any] = yaml.safe_load(f)
     return weights
 
 
-def merge_weights(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+def merge_weights(base: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
     """Merge a partial overrides dict into base weights, returning a new dict."""
     merged = dict(base)
     merged.update(overrides)

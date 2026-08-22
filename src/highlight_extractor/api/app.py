@@ -1,34 +1,31 @@
 """FastAPI application with async job endpoints, health check, CORS, and structured logging."""
 
+import atexit
 import logging
 import os
 import signal
 import tempfile
 import threading
-import atexit
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from highlight_extractor.api.job_manager import ArtifactStore, JobManager
 from highlight_extractor.api.models import (
     ErrorBody,
-    ErrorResponse,
     HighlightsResponse,
-    JobResponse,
     JobStatus,
     RescoreRequest,
     RescoreResponse,
     TranscriptResponse,
 )
-from highlight_extractor.api.job_manager import JobManager, ArtifactStore
 from highlight_extractor.scoring.rank import rank_highlights
 from highlight_extractor.utils.config import load_scoring_weights, merge_weights
-from highlight_extractor.utils.logging import setup_logging, get_logger
-from highlight_extractor.utils.settings import load_settings, Settings
+from highlight_extractor.utils.logging import get_logger, setup_logging
+from highlight_extractor.utils.settings import Settings, load_settings
 
 logger = get_logger("api")
 
@@ -85,7 +82,8 @@ async def lifespan(app: FastAPI):
 # App factory
 # ---------------------------------------------------------------------------
 
-def create_app(settings: Optional[Settings] = None) -> FastAPI:
+
+def create_app(settings: Settings | None = None) -> FastAPI:
     """Create and configure the FastAPI application.
 
     Args:
@@ -179,7 +177,7 @@ def _save_upload(file: UploadFile) -> str:
             status_code=400,
             detail=ErrorBody(
                 code="file_too_large",
-                message=f"File exceeds maximum size of {MAX_UPLOAD_SIZE // (1024*1024)} MB",
+                message=f"File exceeds maximum size of {MAX_UPLOAD_SIZE // (1024 * 1024)} MB",
             ).model_dump(),
         )
     tmp.write(content)
@@ -191,6 +189,7 @@ def _save_upload(file: UploadFile) -> str:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @app.get("/healthz", tags=["ops"])
 async def health_check():
@@ -217,10 +216,10 @@ async def readiness_check():
 @app.post("/v1/jobs", status_code=202)
 async def create_job(
     file: UploadFile = File(...),
-    top_n: Optional[int] = Form(15),
-    min_clip_s: Optional[float] = Form(12.0),
-    max_clip_s: Optional[float] = Form(90.0),
-    expected_num_speakers: Optional[int] = Form(None),
+    top_n: int | None = Form(15),
+    min_clip_s: float | None = Form(12.0),
+    max_clip_s: float | None = Form(90.0),
+    expected_num_speakers: int | None = Form(None),
 ):
     """Submit audio for highlight extraction."""
     audio_path = _save_upload(file)
@@ -355,10 +354,7 @@ async def rescore_job(job_id: str, body: RescoreRequest):
     # Re-run scoring
     new_record.transition_to(JobStatus.SCORING)
     try:
-        transcript_map = {
-            s.segment_id: s.text
-            for s in (record._aligned.segments if record._aligned else [])
-        }
+        transcript_map = {s.segment_id: s.text for s in (record._aligned.segments if record._aligned else [])}
         highlights = rank_highlights(
             record._features,
             weights=weights,
