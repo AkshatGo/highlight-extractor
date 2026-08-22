@@ -1,13 +1,17 @@
-"""FastAPI application with async job endpoints."""
+"""FastAPI application with async job endpoints, health check, CORS, and structured logging."""
 
+import logging
 import os
+import signal
 import tempfile
 import threading
 import atexit
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from highlight_extractor.api.models import (
@@ -23,16 +27,123 @@ from highlight_extractor.api.models import (
 from highlight_extractor.api.job_manager import JobManager, ArtifactStore
 from highlight_extractor.scoring.rank import rank_highlights
 from highlight_extractor.utils.config import load_scoring_weights, merge_weights
+from highlight_extractor.utils.logging import setup_logging, get_logger
+from highlight_extractor.utils.settings import load_settings, Settings
 
-app = FastAPI(title="Highlight Extraction Service", version="0.1.0")
+logger = get_logger("api")
+
+# ---------------------------------------------------------------------------
+# Lifespan: startup / shutdown hooks
+# ---------------------------------------------------------------------------
+
+_temp_files: set = set()
+
+
+def _cleanup_temp_files():
+    """Remove all temp files created by uploads."""
+    for path in list(_temp_files):
+        try:
+            if os.path.exists(path):
+                os.unlink(path)
+        except OSError:
+            pass
+    _temp_files.clear()
+
+
+def _handle_shutdown(signum, frame):
+    """Graceful shutdown handler for SIGTERM/SIGINT."""
+    logger.info("shutdown_signal_received", extra={"signal": signum})
+    _cleanup_temp_files()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: setup on startup, cleanup on shutdown."""
+    # Startup
+    settings = load_settings()
+    setup_logging(getattr(logging, settings.log_level, logging.INFO))
+    logger.info(
+        "app_starting",
+        extra={"host": settings.host, "port": settings.port, "workers": settings.workers},
+    )
+
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, _handle_shutdown)
+    signal.signal(signal.SIGINT, _handle_shutdown)
+
+    # Register atexit as fallback
+    atexit.register(_cleanup_temp_files)
+
+    yield
+
+    # Shutdown
+    logger.info("app_shutting_down")
+    _cleanup_temp_files()
+
+
+# ---------------------------------------------------------------------------
+# App factory
+# ---------------------------------------------------------------------------
+
+def create_app(settings: Optional[Settings] = None) -> FastAPI:
+    """Create and configure the FastAPI application.
+
+    Args:
+        settings: Optional settings override. Loaded from env if None.
+
+    Returns:
+        Configured FastAPI instance.
+    """
+    if settings is None:
+        settings = load_settings()
+
+    _app = FastAPI(
+        title="Highlight Extraction Service",
+        version="0.1.0",
+        description="Automated highlight extraction from long-form podcast/talk audio.",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        lifespan=lifespan,
+    )
+
+    # --- CORS ---
+    _app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=settings.cors_methods,
+        allow_headers=settings.cors_headers,
+    )
+
+    # --- Global exception handler ---
+    @_app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger.error("unhandled_exception", extra={"path": request.url.path, "error": str(exc)})
+        return JSONResponse(
+            status_code=500,
+            content=ErrorBody(
+                code="internal_error",
+                message="An unexpected error occurred. Please try again.",
+            ).model_dump(),
+        )
+
+    return _app
+
+
+# ---------------------------------------------------------------------------
+# Default app instance (for uvicorn direct invocation)
+# ---------------------------------------------------------------------------
+
+_settings = load_settings()
+app = create_app(_settings)
 
 # Global job manager (in-process; thread-safe for this use pattern)
-store = ArtifactStore()
+store = ArtifactStore(base_path=_settings.artifact_store_path)
 manager = JobManager(artifact_store=store)
 
-SUPPORTED_EXTENSIONS = {".wav", ".mp3", ".m4a", ".flac"}
-MAX_UPLOAD_SIZE = 500 * 1024 * 1024  # 500 MB
-_uploaded_temp_files: set[str] = set()  # Track temp files for cleanup
+SUPPORTED_EXTENSIONS = _settings.supported_extensions
+MAX_UPLOAD_SIZE = _settings.max_upload_size_bytes
+_uploaded_temp_files: set = set()  # Track temp files for cleanup
 
 
 def _cleanup_temp_files():
@@ -57,7 +168,7 @@ def _save_upload(file: UploadFile) -> str:
             status_code=400,
             detail=ErrorBody(
                 code="invalid_audio_format",
-                message=f"Extension '{ext}' not supported. Accepted: {', '.join(SUPPORTED_EXTENSIONS)}",
+                message=f"Extension '{ext}' not supported. Accepted: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
             ).model_dump(),
         )
 
@@ -77,6 +188,32 @@ def _save_upload(file: UploadFile) -> str:
     return tmp.name
 
 
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+@app.get("/healthz", tags=["ops"])
+async def health_check():
+    """Health check endpoint for load balancers and orchestrators.
+
+    Returns 200 OK when the service is running and accepting requests.
+    """
+    return {"status": "ok", "version": "0.1.0"}
+
+
+@app.get("/readyz", tags=["ops"])
+async def readiness_check():
+    """Readiness probe: confirms the job manager and artifact store are functional.
+
+    Returns 200 when ready, 503 when not.
+    """
+    try:
+        store_ok = store.base.exists()
+        return {"status": "ready" if store_ok else "not_ready", "artifact_store": str(store.base)}
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "not_ready", "error": str(e)})
+
+
 @app.post("/v1/jobs", status_code=202)
 async def create_job(
     file: UploadFile = File(...),
@@ -94,6 +231,8 @@ async def create_job(
         max_clip_s=max_clip_s if max_clip_s is not None else 90.0,
         expected_num_speakers=expected_num_speakers,
     )
+
+    logger.info("job_submitted", extra={"job_id": job_id, "filename": file.filename})
 
     # Launch pipeline in background thread
     thread = threading.Thread(target=manager.run_pipeline, args=(job_id,), daemon=True)

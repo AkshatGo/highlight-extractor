@@ -1,8 +1,73 @@
+# ============================================================
+# Python
+# ============================================================
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
+*$py.class
+*.so
+*.egg
 *.egg-info/
-.pytest_cache/
+dist/
+build/
+eggs/
+*.whl
+pip-wheel-metadata/
+
+# ============================================================
+# Virtual environments
+# ============================================================
 .venv/
+venv/
+ENV/
+env/
+
+# ============================================================
+# Testing / Quality
+# ============================================================
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+.mypy_cache/
+.ruff_cache/
+
+# ============================================================
+# IDE / Editor
+# ============================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# Project-specific
+# ============================================================
 *.normalized.wav
 /tmp/
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.production
+
+# Artifacts (generated at runtime)
+artifacts/
+/tmp/highlight_artifacts/
+
+# Docker
+docker-compose.override.yml
+
+# Benchmark results (generated)
+benchmarks/results.csv
+benchmarks/eval_set/*.wav
+benchmarks/eval_set/*.mp3
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/

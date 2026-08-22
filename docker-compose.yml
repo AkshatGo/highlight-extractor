@@ -1,0 +1,66 @@
+# docker-compose.yml — Local development + production deployment
+# ================================================================
+# Usage:
+#   Local dev (hot reload):  docker compose up api-dev
+#   Production (gunicorn):   docker compose up api
+#   Both:                    docker compose up
+
+services:
+  # --- Production service (gunicorn + uvicorn workers) ---
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - WORKERS=${WORKERS:-2}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ARTIFACT_STORE=/app/artifacts
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - PIPELINE_TIMEOUT=${PIPELINE_TIMEOUT:-7200}
+    volumes:
+      - artifact_data:/app/artifacts
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # --- Development service (uvicorn with hot reload) ---
+  api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=DEBUG
+      - RELOAD=true
+      - ARTIFACT_STORE=/app/artifacts
+      - CORS_ORIGINS=*
+      - WHISPER_MODEL=${WHISPER_MODEL:-base}
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./scripts:/app/scripts
+      - artifact_data:/app/artifacts
+    command: >
+      uvicorn highlight_extractor.api.app:app
+      --host 0.0.0.0 --port 8000
+      --reload --reload-dir /app/src
+      --log-level debug
+    restart: unless-stopped
+
+volumes:
+  artifact_data:
+    driver: local
