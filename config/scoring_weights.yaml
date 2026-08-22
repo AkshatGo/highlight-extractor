@@ -1,0 +1,14 @@
+# Scoring weights for the composite highlight score.
+# All values are z-scored per episode before combination.
+# Weights are summed to produce the final score.
+# Changing these does NOT require a redeploy — they are loaded at runtime.
+
+sentiment_delta: 0.25
+sentiment_extremity: 0.20
+energy_zscore: 0.15
+pitch_variance: 0.10
+speech_rate_delta: 0.10
+keyword_density: 0.10
+crosstalk_bonus: 0.10
+asr_confidence_penalty: 0.15
+asr_confidence_threshold: 0.5

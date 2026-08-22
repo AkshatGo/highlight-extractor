@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "highlight-extractor"
+version = "0.1.0"
+description = "Automated highlight extraction from long-form podcast/talk audio"
+requires-python = ">=3.10"
+dependencies = [
+    "faster-whisper>=1.0.0",
+    "pyannote.audio>=3.0.0",
+    "librosa>=0.10.0",
+    "numpy<2.0.0",
+    "scipy>=1.10.0",
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.20.0",
+    "pydantic>=2.0.0",
+    "python-multipart>=0.0.6",
+    "pydub>=0.25.0",
+    "soundfile>=0.12.0",
+    "transformers>=4.30.0",
+    "torch>=2.0.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.24.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: slow tests (end-to-end, real models)",
+    "gpu: tests requiring GPU",
+]
+testpaths = ["tests"]

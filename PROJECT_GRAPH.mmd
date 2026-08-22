@@ -1,0 +1,107 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '12px' }}}%%
+graph TB
+    subgraph API["API Layer"]
+        APP["api/app.py<br/>FastAPI endpoints"]
+        MODELS["api/models.py<br/>Pydantic schemas"]
+        JOBMGR["api/job_manager.py<br/>Pipeline orchestrator"]
+    end
+
+    subgraph Pipeline["Pipeline Stages"]
+        INGEST["ingestion/<br/>pipeline.py"]
+        TRANS["transcription/<br/>pipeline.py"]
+        DIAR["diarization/<br/>pipeline.py"]
+        ALIGN["alignment.py"]
+        SEG["scoring/<br/>segment.py"]
+        FEAT["scoring/<br/>features.py"]
+        RANK["scoring/<br/>rank.py"]
+    end
+
+    subgraph Utils["Utilities"]
+        AUDIO["utils/audio.py"]
+        AUDIOIO["utils/audio_io.py"]
+        CFG["utils/config.py"]
+        LOG["utils/logging.py"]
+        QC["utils/qc.py"]
+    end
+
+    subgraph External["External Dependencies"]
+        WHISPER["faster_whisper"]
+        PYAN["pyannote.audio"]
+        SENT["transformers<br/>sentiment"]
+        LIB["librosa<br/>RMS, pyin"]
+        FA["fastapi"]
+        PYD["pydantic"]
+    end
+
+    subgraph Config["Config"]
+        YAML["scoring_weights.yaml"]
+    end
+
+    subgraph Scripts["CLI Scripts"]
+        CLI["scripts/<br/>run_pipeline.py"]
+        BENCH["scripts/<br/>benchmark.py"]
+    end
+
+    %% Pipeline data flow
+    INGEST -->|"audio, sr"| TRANS
+    INGEST -->|"audio path"| DIAR
+    TRANS -->|"words"| ALIGN
+    DIAR -->|"turns"| ALIGN
+    ALIGN -->|"segments"| SEG
+    SEG -->|"candidates"| FEAT
+    FEAT -->|"features"| RANK
+
+    %% API wiring
+    APP --> JOBMGR
+    APP --> MODELS
+    APP --> RANK
+    APP --> CFG
+    JOBMGR --> INGEST
+    JOBMGR --> TRANS
+    JOBMGR --> DIAR
+    JOBMGR --> ALIGN
+    JOBMGR --> SEG
+    JOBMGR --> FEAT
+    JOBMGR --> RANK
+    JOBMGR --> CFG
+
+    %% Utils
+    INGEST --> AUDIO
+    INGEST --> QC
+    AUDIO --> LIB
+    AUDIOIO --> AUDIO
+    QC --> LIB
+    FEAT --> SENT
+    FEAT --> LIB
+    CFG --> YAML
+
+    %% External
+    TRANS --> WHISPER
+    DIAR --> PYAN
+
+    %% Scripts
+    CLI --> INGEST
+    CLI --> TRANS
+    CLI --> DIAR
+    CLI --> ALIGN
+    CLI --> FEAT
+    CLI --> RANK
+    BENCH --> INGEST
+    BENCH --> TRANS
+    BENCH --> DIAR
+    BENCH --> ALIGN
+    BENCH --> FEAT
+
+    %% Styling
+    classDef pipeline fill:#d4edda,stroke:#28a745
+    classDef api fill:#fff3cd,stroke:#ffc107
+    classDef util fill:#cce5ff,stroke:#004085
+    classDef external fill:#f8d7da,stroke:#721c24
+    classDef config fill:#e2e3e5,stroke:#383d41
+
+    class INGEST,TRANS,DIAR,ALIGN,SEG,FEAT,RANK pipeline
+    class APP,MODELS,JOBMGR api
+    class AUDIO,AUDIOIO,CFG,LOG,QC util
+    class WHISPER,PYAN,SENT,LIB,FA,PYD external
+    class YAML config
+    class CLI,BENCH config

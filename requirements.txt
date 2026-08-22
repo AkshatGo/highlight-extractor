@@ -1,0 +1,28 @@
+# Core pipeline
+faster-whisper>=1.0.0
+pyannote.audio>=3.0.0
+librosa>=0.10.0
+numpy<2.0.0
+scipy>=1.10.0
+
+# API
+fastapi>=0.100.0
+uvicorn[standard]>=0.20.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+
+# Audio I/O
+pydub>=0.25.0
+soundfile>=0.12.0
+
+# Sentiment
+transformers>=4.30.0
+torch>=2.0.0
+
+# Config
+pyyaml>=6.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0

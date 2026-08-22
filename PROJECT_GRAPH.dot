@@ -1,0 +1,130 @@
+digraph HighlightExtractor {
+    rankdir=TB;
+    node [shape=box, style=filled, fontname="Courier", fontsize=10];
+    edge [fontsize=8];
+
+    // Color coding: green=pipeline stage, blue=util, orange=api, gray=external
+    // Pipeline stages
+    subgraph cluster_pipeline {
+        label="Pipeline Stages";
+        style=dashed;
+        color=gray;
+
+        ingestion [label="ingestion/\npipeline.py", fillcolor="#d4edda"];
+        transcription [label="transcription/\npipeline.py", fillcolor="#d4edda"];
+        diarization [label="diarization/\npipeline.py", fillcolor="#d4edda"];
+        alignment [label="alignment.py", fillcolor="#d4edda"];
+        segment [label="scoring/\nsegment.py", fillcolor="#d4edda"];
+        features [label="scoring/\nfeatures.py", fillcolor="#d4edda"];
+        rank [label="scoring/\nrank.py", fillcolor="#d4edda"];
+    }
+
+    // API layer
+    subgraph cluster_api {
+        label="API Layer";
+        style=dashed;
+        color=orange;
+
+        app [label="api/app.py", fillcolor="#fff3cd"];
+        models [label="api/models.py", fillcolor="#fff3cd"];
+        jobmgr [label="api/job_manager.py", fillcolor="#fff3cd"];
+    }
+
+    // Utils
+    subgraph cluster_utils {
+        label="Utils";
+        style=dashed;
+        color=blue;
+
+        audio [label="utils/audio.py", fillcolor="#cce5ff"];
+        audioio [label="utils/audio_io.py", fillcolor="#cce5ff"];
+        config [label="utils/config.py", fillcolor="#cce5ff"];
+        logging_mod [label="utils/logging.py", fillcolor="#cce5ff"];
+        qc [label="utils/qc.py", fillcolor="#cce5ff"];
+    }
+
+    // External deps
+    subgraph cluster_external {
+        label="External Dependencies";
+        style=dashed;
+        color=red;
+
+        whisper [label="faster_whisper", fillcolor="#f8d7da"];
+        pyannote [label="pyannote.audio", fillcolor="#f8d7da"];
+        transformers [label="transformers\n(sentiment)", fillcolor="#f8d7da"];
+        librosa [label="librosa\n(RMS, pyin)", fillcolor="#f8d7da"];
+        fastapi [label="fastapi", fillcolor="#f8d7da"];
+        pydantic [label="pydantic", fillcolor="#f8d7da"];
+        pydub [label="pydub", fillcolor="#f8d7da"];
+        numpy [label="numpy/scipy", fillcolor="#f8d7da"];
+        yaml_mod [label="pyyaml", fillcolor="#f8d7da"];
+        soundfile [label="soundfile", fillcolor="#f8d7da"];
+    }
+
+    // Pipeline data flow
+    ingestion -> transcription [label="audio path"];
+    ingestion -> diarization [label="audio path"];
+    transcription -> alignment [label="words"];
+    diarization -> alignment [label="turns"];
+    alignment -> segment [label="segments"];
+    segment -> features [label="candidates"];
+    features -> rank [label="features"];
+
+    // Utils dependencies
+    ingestion -> audio;
+    ingestion -> qc;
+    audio -> librosa;
+    audio -> pydub;
+    audioio -> soundfile;
+    qc -> librosa;
+    qc -> numpy;
+    config -> yaml_mod;
+    transcription -> whisper;
+    diarization -> pyannote;
+    features -> transformers;
+    features -> librosa;
+    features -> numpy;
+
+    // API dependencies
+    app -> jobmgr;
+    app -> models;
+    app -> rank;
+    app -> config;
+    app -> fastapi;
+    app -> pydantic;
+    jobmgr -> ingestion;
+    jobmgr -> transcription;
+    jobmgr -> diarization;
+    jobmgr -> alignment;
+    jobmgr -> segment;
+    jobmgr -> features;
+    jobmgr -> rank;
+    jobmgr -> config;
+    jobmgr -> models;
+    models -> pydantic;
+
+    // Scripts
+    subgraph cluster_scripts {
+        label="Scripts";
+        style=dashed;
+        color=gray;
+
+        run_pipeline [label="scripts/\nrun_pipeline.py", fillcolor="#e2e3e5"];
+        benchmark [label="scripts/\nbenchmark.py", fillcolor="#e2e3e5"];
+    }
+
+    run_pipeline -> ingestion;
+    run_pipeline -> transcription;
+    run_pipeline -> diarization;
+    run_pipeline -> alignment;
+    run_pipeline -> features;
+    run_pipeline -> rank;
+    run_pipeline -> config;
+
+    benchmark -> ingestion;
+    benchmark -> transcription;
+    benchmark -> diarization;
+    benchmark -> alignment;
+    benchmark -> features;
+    benchmark -> config;
+}
