@@ -18,12 +18,13 @@ from highlight_extractor.api.models import (
     ErrorBody,
     HighlightsResponse,
     JobStatus,
+    PresetsResponse,
     RescoreRequest,
     RescoreResponse,
     TranscriptResponse,
 )
 from highlight_extractor.scoring.rank import rank_highlights
-from highlight_extractor.utils.config import load_scoring_weights, merge_weights
+from highlight_extractor.utils.config import list_keyword_presets, load_scoring_weights, merge_weights
 from highlight_extractor.utils.logging import get_logger, setup_logging
 from highlight_extractor.utils.settings import Settings, load_settings
 
@@ -220,15 +221,20 @@ async def create_job(
     min_clip_s: float | None = Form(12.0),
     max_clip_s: float | None = Form(90.0),
     expected_num_speakers: int | None = Form(None),
+    keyword_preset: str | None = Form(None),
+    webhook_url: str | None = Form(None),
 ):
     """Submit audio for highlight extraction."""
     audio_path = _save_upload(file)
+    preset = keyword_preset or _settings.keyword_preset
     job_id = manager.submit(
         audio_path=audio_path,
         top_n=top_n if top_n is not None else 15,
         min_clip_s=min_clip_s if min_clip_s is not None else 12.0,
         max_clip_s=max_clip_s if max_clip_s is not None else 90.0,
         expected_num_speakers=expected_num_speakers,
+        keyword_preset=preset,
+        webhook_url=webhook_url,
     )
 
     logger.info("job_submitted", extra={"job_id": job_id, "filename": file.filename})
@@ -372,3 +378,10 @@ async def rescore_job(job_id: str, body: RescoreRequest):
         status=new_record.status.value,
         created_at=new_record.created_at,
     )
+
+
+@app.get("/v1/presets", tags=["config"])
+async def get_presets():
+    """List available keyword presets."""
+    presets = list_keyword_presets()
+    return PresetsResponse(keyword_presets=presets)

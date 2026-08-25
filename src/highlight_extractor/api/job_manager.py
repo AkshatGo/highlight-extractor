@@ -24,7 +24,7 @@ from highlight_extractor.scoring.features import SegmentFeatures, extract_featur
 from highlight_extractor.scoring.rank import Highlight, rank_highlights
 from highlight_extractor.scoring.segment import derive_candidate_segments
 from highlight_extractor.transcription.pipeline import TranscriptionResult, run_transcription
-from highlight_extractor.utils.config import load_scoring_weights
+from highlight_extractor.utils.config import load_keyword_preset, load_scoring_weights
 
 
 class JobRecord:
@@ -38,6 +38,9 @@ class JobRecord:
         min_clip_s: float = 12.0,
         max_clip_s: float = 90.0,
         expected_num_speakers: int | None = None,
+        keyword_preset: str = "default",
+        keywords: list[str] | None = None,
+        webhook_url: str | None = None,
     ):
         self.job_id = job_id
         self.audio_path = audio_path
@@ -45,6 +48,9 @@ class JobRecord:
         self.min_clip_s = min_clip_s
         self.max_clip_s = max_clip_s
         self.expected_num_speakers = expected_num_speakers
+        self.keyword_preset = keyword_preset
+        self.keywords = keywords
+        self.webhook_url = webhook_url
         self.status = JobStatus.QUEUED
         self.created_at = datetime.now(timezone.utc).isoformat()
         self.stage_history: list[StageEntry] = [StageEntry(stage="QUEUED", started_at=self.created_at)]
@@ -86,6 +92,8 @@ class JobRecord:
             quality_warning=self.quality_warning,
             failed_stage=self.failed_stage,
             error=self.error,
+            webhook_url=self.webhook_url,
+            keyword_preset=self.keyword_preset,
         )
 
 
@@ -128,6 +136,9 @@ class JobManager:
         min_clip_s: float = 12.0,
         max_clip_s: float = 90.0,
         expected_num_speakers: int | None = None,
+        keyword_preset: str = "default",
+        keywords: list[str] | None = None,
+        webhook_url: str | None = None,
     ) -> str:
         job_id = str(uuid.uuid4())
         record = JobRecord(
@@ -137,6 +148,9 @@ class JobManager:
             min_clip_s=min_clip_s,
             max_clip_s=max_clip_s,
             expected_num_speakers=expected_num_speakers,
+            keyword_preset=keyword_preset,
+            keywords=keywords,
+            webhook_url=webhook_url,
         )
         self._jobs[job_id] = record
         return job_id
@@ -238,7 +252,11 @@ class JobManager:
                 min_clip_s=record.min_clip_s,
                 max_clip_s=record.max_clip_s,
             )
-            features = extract_features(candidates, audio, sr)
+            # Resolve keywords: explicit > preset > default
+            keywords = record.keywords
+            if keywords is None and record.keyword_preset != "default":
+                keywords = load_keyword_preset(record.keyword_preset)
+            features = extract_features(candidates, audio, sr, keywords=keywords or None)
             record._features = features
             self.store.save_json(
                 job_id,
@@ -293,9 +311,15 @@ class JobManager:
             # --- DONE ---
             record.transition_to(JobStatus.DONE)
 
+            # Fire webhook if configured
+            if record.webhook_url:
+                self._fire_webhook(record, event="job.completed")
+
         except Exception as e:
             current_stage = record.status.value
             record.fail(current_stage, "internal_error", str(e))
+            if record.webhook_url:
+                self._fire_webhook(record, event="job.failed")
 
     def get_highlights(self, job_id: str) -> list[HighlightItem] | None:
         """Return scored highlights as Pydantic models."""
@@ -333,3 +357,32 @@ class JobManager:
             )
             for s in record._aligned.segments
         ]
+
+    def _fire_webhook(self, record: JobRecord, event: str):
+        """Send a webhook notification (best-effort, non-blocking)."""
+        import threading
+        import urllib.request
+
+        payload = {
+            "event": event,
+            "job_id": record.job_id,
+            "status": record.status.value,
+        }
+        if event == "job.completed":
+            payload["highlights_url"] = f"/v1/jobs/{record.job_id}/highlights"
+        if record.error:
+            payload["error"] = {"code": record.error.code, "message": record.error.message}
+
+        def _send():
+            try:
+                req = urllib.request.Request(
+                    record.webhook_url,
+                    data=json.dumps(payload).encode(),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                urllib.request.urlopen(req, timeout=10)
+            except Exception:
+                pass  # Best-effort; don't crash the pipeline
+
+        threading.Thread(target=_send, daemon=True).start()

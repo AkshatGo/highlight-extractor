@@ -70,6 +70,12 @@ class Settings:
     # HuggingFace access token (required for pyannote gated models)
     hf_token: str | None = None
 
+    # Keyword presets (per-show configurable keywords)
+    keyword_preset: str = "default"
+
+    # Webhook callback URL (called on job completion/failure)
+    webhook_url: str | None = None
+
     # Worker
     pipeline_timeout_s: int = 7200  # 2 hours max per job
 
@@ -97,6 +103,8 @@ def load_settings() -> Settings:
         WHISPER_MODEL     → whisper_model (default: base)
         DIARIZATION_MODEL → diarization_model (default: pyannote/speaker-diarization-3.1)
         HF_TOKEN          → hf_token (default: None; REQUIRED for diarization)
+        KEYWORD_PRESET    → keyword_preset (default: default)
+        WEBHOOK_URL       → webhook_url (default: None)
         PIPELINE_TIMEOUT  → pipeline_timeout_s (default: 7200)
     """
     _load_dotenv()
@@ -123,5 +131,7 @@ def load_settings() -> Settings:
         whisper_model=os.environ.get("WHISPER_MODEL", "base"),
         diarization_model=os.environ.get("DIARIZATION_MODEL", "pyannote/speaker-diarization-3.1"),
         hf_token=os.environ.get("HF_TOKEN") or None,
+        keyword_preset=os.environ.get("KEYWORD_PRESET", "default"),
+        webhook_url=os.environ.get("WEBHOOK_URL") or None,
         pipeline_timeout_s=int(os.environ.get("PIPELINE_TIMEOUT", "7200")),
     )

@@ -39,6 +39,8 @@ class JobResponse(BaseModel):
     quality_warning: str | None = None
     failed_stage: str | None = None
     error: ErrorBody | None = None
+    webhook_url: str | None = None
+    keyword_preset: str | None = None
 
 
 class HighlightItem(BaseModel):
@@ -84,6 +86,20 @@ class RescoreRequest(BaseModel):
     min_clip_s: float | None = None
     max_clip_s: float | None = None
     weights_override: dict[str, float] | None = None
+    keywords: list[str] | None = None
+
+
+class PresetsResponse(BaseModel):
+    keyword_presets: list[str] = []
+
+
+class WebhookPayload(BaseModel):
+    """Payload sent to webhook_url on job completion or failure."""
+    event: str  # "job.completed" or "job.failed"
+    job_id: str
+    status: str
+    highlights_url: str | None = None
+    error: ErrorBody | None = None
 
 
 class RescoreResponse(BaseModel):

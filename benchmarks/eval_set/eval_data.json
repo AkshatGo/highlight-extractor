@@ -1,0 +1,57 @@
+[
+  {
+    "episode_id": "ep01_tech_interview",
+    "duration_s": 300,
+    "num_speakers": 2,
+    "ground_truth_highlights": [
+      {"start_s": 45.0, "end_s": 58.0, "label": "Key insight about AI"},
+      {"start_s": 120.0, "end_s": 135.0, "label": "Controversial opinion"},
+      {"start_s": 200.0, "end_s": 215.0, "label": "Funny anecdote"}
+    ]
+  },
+  {
+    "episode_id": "ep02_comedy_show",
+    "duration_s": 600,
+    "num_speakers": 1,
+    "ground_truth_highlights": [
+      {"start_s": 30.0, "end_s": 55.0, "label": "Opening bit kills"},
+      {"start_s": 180.0, "end_s": 200.0, "label": "Crowd interaction"},
+      {"start_s": 350.0, "end_s": 370.0, "label": "Callback joke"},
+      {"start_s": 500.0, "end_s": 525.0, "label": "Closing strong"}
+    ]
+  },
+  {
+    "episode_id": "ep03_news_panel",
+    "duration_s": 900,
+    "num_speakers": 4,
+    "ground_truth_highlights": [
+      {"start_s": 100.0, "end_s": 120.0, "label": "Breaking news reaction"},
+      {"start_s": 300.0, "end_s": 320.0, "label": " heated debate"},
+      {"start_s": 500.0, "end_s": 520.0, "label": "Expert analysis"},
+      {"start_s": 700.0, "end_s": 715.0, "label": "Surprising admission"},
+      {"start_s": 850.0, "end_s": 870.0, "label": "Wrap-up highlight"}
+    ]
+  },
+  {
+    "episode_id": "ep04_podcast_casual",
+    "duration_s": 1800,
+    "num_speakers": 3,
+    "ground_truth_highlights": [
+      {"start_s": 200.0, "end_s": 220.0, "label": "Personal story"},
+      {"start_s": 600.0, "end_s": 620.0, "label": "Disagreement moment"},
+      {"start_s": 900.0, "end_s": 925.0, "label": "Laughter segment"},
+      {"start_s": 1200.0, "end_s": 1220.0, "label": "Key takeaway"},
+      {"start_s": 1500.0, "end_s": 1520.0, "label": "Callback to earlier"}
+    ]
+  },
+  {
+    "episode_id": "ep05_tutorial",
+    "duration_s": 450,
+    "num_speakers": 1,
+    "ground_truth_highlights": [
+      {"start_s": 60.0, "end_s": 80.0, "label": "Important concept"},
+      {"start_s": 200.0, "end_s": 220.0, "label": "Common mistake warning"},
+      {"start_s": 350.0, "end_s": 370.0, "label": "Pro tip"}
+    ]
+  }
+]

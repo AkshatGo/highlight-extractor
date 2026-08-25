@@ -1,0 +1,130 @@
+# Per-show keyword presets for highlight extraction.
+# Each preset defines keywords that signal highlight-worthy moments
+# for a specific show type or genre.
+#
+# Usage:
+#   Set KEYWORD_PRESET=<name> in .env or pass via API
+#   Or provide custom keywords per job via the API
+
+# Default: general podcast keywords
+default:
+  - but
+  - wow
+  - amazing
+  - wait
+  - seriously
+  - incredible
+  - unbelievable
+  - shocking
+  - hilarious
+  - exactly
+  - right
+  - absolutely
+  - definitely
+  - literally
+  - honestly
+  - problem
+  - solution
+  - secret
+  - truth
+  - mistake
+
+# Tech / business podcast
+tech:
+  - breakthrough
+  - disruption
+  - innovation
+  - scale
+  - pivot
+  - revenue
+  - growth
+  - ai
+  - machine learning
+  - blockchain
+  - startup
+  - funding
+  - ipo
+  - acquisition
+  - game changer
+  - paradigm shift
+  - future
+  - revolution
+  - terrifying
+  - incredible
+
+# Comedy / entertainment
+comedy:
+  - hilarious
+  - laugh
+  - joke
+  - funny
+  - ridiculous
+  - absurd
+  - OMG
+  - wait what
+  - no way
+  - shut up
+  - dying
+  - killed it
+  - roast
+  - savage
+  - epic fail
+  - best ever
+  - literally dying
+
+# News / politics
+news:
+  - breaking
+  - exclusive
+  - sources say
+  - confirmed
+  - denied
+  - scandal
+  - controversy
+  - investigation
+  - resigned
+  - fired
+  - elected
+  - unprecedented
+  - shocking
+  - emergency
+  - crisis
+  - accountability
+
+# True crime / mystery
+true_crime:
+  - evidence
+  - motive
+  - suspect
+  - alibi
+  - witness
+  - confession
+  - mystery
+  - conspiracy
+  - cover up
+  - forensic
+  - dna
+  - cold case
+  - missing
+  - timeline
+  - red flag
+  - chilling
+  - horrifying
+
+# Interview / personal stories
+interview:
+  - honestly
+  - truth is
+  - never told
+  - secret
+  - biggest mistake
+  - life changing
+  - turning point
+  - hardest part
+  - lesson learned
+  - vulnerable
+  - emotional
+  - raw
+  - real talk
+  - no filter
+  - behind closed doors
