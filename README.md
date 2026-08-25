@@ -2,6 +2,8 @@
 
 **Find the best moments in any podcast, interview, or talk — automatically.**
 
+[![Live Demo](https://img.shields.io/badge/LIVE%20DEMO-Click%20Here-blue)](https://highlight-extractor-thtb.onrender.com)
+
 ---
 
 ## The Problem
