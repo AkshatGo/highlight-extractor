@@ -38,20 +38,6 @@ COPY config/ ./config/
 COPY scripts/ ./scripts/
 COPY .env.example .env.example
 
-# Create startup script (as root, before switching user)
-RUN printf '#!/bin/bash\n\
-PORT=${PORT:-8000}\n\
-exec gunicorn highlight_extractor.api.app:app \\\n\
-     --bind 0.0.0.0:$PORT \\\n\
-     --workers 1 \\\n\
-     --worker-class uvicorn.workers.UvicornWorker \\\n\
-     --timeout 120 \\\n\
-     --graceful-timeout 30 \\\n\
-     --access-logfile - \\\n\
-     --error-logfile - \\\n\
-     --log-level info\n' > /app/startup.sh && \
-    chmod +x /app/startup.sh
-
 # Create non-root user for security
 RUN groupadd -r highlight && useradd -r -g highlight -d /app highlight \
     && mkdir -p /tmp/highlight_artifacts /app/artifacts \
@@ -76,4 +62,13 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/healthz')" || exit 1
 
-CMD ["/app/startup.sh"]
+# Use gunicorn directly — Render sets $PORT automatically
+CMD exec gunicorn highlight_extractor.api.app:app \
+     --bind 0.0.0.0:${PORT:-8000} \
+     --workers 1 \
+     --worker-class uvicorn.workers.UvicornWorker \
+     --timeout 120 \
+     --graceful-timeout 30 \
+     --access-logfile - \
+     --error-logfile - \
+     --log-level info
