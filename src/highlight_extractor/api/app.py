@@ -392,7 +392,10 @@ async def get_presets():
 # Frontend (static files)
 # ---------------------------------------------------------------------------
 
-_STATIC_DIR = Path(__file__).resolve().parents[3] / "static"
+# Find static directory: check working dir first (Docker), then relative to package
+_STATIC_DIR = Path.cwd() / "static"
+if not _STATIC_DIR.exists():
+    _STATIC_DIR = Path(__file__).resolve().parents[3] / "static"
 if _STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
