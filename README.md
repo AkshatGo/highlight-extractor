@@ -1,26 +1,51 @@
-# highlight-extractor
+# Highlight Extractor
 
-Automatically extract highlight moments from long-form talk/podcast audio
-using speaker diarization and sentiment/energy scoring — so a human editor
-can review a shortlist instead of scrubbing through hours of recordings.
-
-**Stack:** Python, faster-whisper, pyannote.audio, Librosa, FastAPI.
+**Find the best moments in any podcast, interview, or talk — automatically.**
 
 ---
 
-## 🎯 What it does
+## The Problem
 
-1. **Ingests** audio files (WAV, MP3, M4A, FLAC) up to 4 hours
-2. **Transcribes** with word-level timestamps using faster-whisper
-3. **Diarizes** speakers with pyannote.audio
-4. **Aligns** transcript to speaker turns
-5. **Scores** each segment on sentiment, energy, pitch, speech rate, keywords
-6. **Ranks** and deduplicates to surface the top highlight moments
-7. **Returns** a structured JSON response via REST API
+You have a 2-hour podcast or interview. You need to find the 3-5 best moments to post on social media. Right now, someone has to listen to the whole thing and manually pick clips. That takes hours.
 
-## 🚀 Quick start
+## What This Does
 
-### Option 1: Docker (recommended)
+Upload the audio → It listens to the whole thing → It finds the best moments automatically → You get a list of clips ranked by "highlight quality."
+
+**Live Demo:** https://highlight-extractor-thtb.onrender.com
+
+## How It Picks Highlights
+
+- 🎤 **Emotional peaks** — Finds when speakers get excited, surprised, or passionate
+- 🔊 **Energy shifts** — Spots when voices get louder or more animated
+- 💬 **Keyword matches** — Catches "incredible," "shocking," "game changer," etc.
+- 👥 **Speaker reactions** — Identifies moments where one speaker reacts strongly to another
+- 🎯 **Context-aware** — Different keyword sets for tech, comedy, news, true crime, interviews
+
+## Who It's For
+
+- **Podcast editors** who need to create social media clips
+- **Newsrooms** cutting highlights from long interviews
+- **Content creators** repurposing long-form content
+- **Any team** processing audio/video at scale
+
+## What You Get
+
+- Ranked list of the best moments
+- Exact timestamps (start/end times)
+- Transcript excerpts
+- Reason why each moment was flagged
+- All in a web app — drag, drop, done
+
+---
+
+## Quick Start
+
+### Option 1: Use the live app (no setup)
+
+Go to **https://highlight-extractor-thtb.onrender.com** and upload an audio file.
+
+### Option 2: Docker (recommended for production)
 
 ```bash
 # Copy and configure environment
@@ -36,7 +61,7 @@ curl -X POST http://localhost:8000/v1/jobs \
   -F "top_n=10"
 ```
 
-### Option 2: Local development
+### Option 3: Local development
 
 ```bash
 # Setup
@@ -53,19 +78,9 @@ uvicorn highlight_extractor.api.app:app --host 0.0.0.0 --port 8000
 python scripts/demo_pipeline.py
 ```
 
-### Option 3: Run benchmarks
-
-```bash
-# Time each pipeline stage across audio lengths
-python scripts/benchmark.py --runs 3
-
-# Evaluate precision@10 against labeled data
-python scripts/evaluate.py
-```
-
 ---
 
-## ⚙️ Setup: model access (required before first run)
+## Setup: Model Access (required before first run)
 
 1. Copy `.env.example` to `.env`.
 2. **Accept the gated pyannote models** on HuggingFace (free account needed):
@@ -78,7 +93,23 @@ No `HF_TOKEN` is needed for transcription only; diarization will fail without it
 
 ---
 
-## 📡 API Reference
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Drag-and-drop upload** | Web UI — no technical skills needed |
+| **Real-time progress** | Watch each stage complete |
+| **6 keyword presets** | Tech, comedy, news, true crime, interview, default |
+| **Custom keywords** | Add your own highlight triggers |
+| **Rescore** | Re-run scoring with different weights |
+| **Webhooks** | Get notified when processing completes |
+| **Multi-language** | Supports any language Whisper understands |
+| **4-hour files** | Handles long podcasts and interviews |
+| **Mobile ready** | Works on phones and tablets |
+
+---
+
+## API Reference
 
 ### Submit a job
 
@@ -100,16 +131,8 @@ webhook_url: (optional) URL to POST to on job completion
 {
   "job_id": "abc-123",
   "status": "QUEUED",
-  "created_at": "2026-08-26T12:00:00Z",
-  "keyword_preset": "tech",
-  "webhook_url": "https://example.com/hook"
+  "created_at": "2026-08-26T12:00:00Z"
 }
-```
-
-### Poll job status
-
-```
-GET /v1/jobs/{job_id}
 ```
 
 ### Get highlights
@@ -131,23 +154,9 @@ GET /v1/jobs/{job_id}/highlights
       "speaker": "SPEAKER_00",
       "score": 0.847,
       "reasons": ["high energy", "strong sentiment swing"],
-      "transcript_excerpt": "This is absolutely incredible...",
-      "low_confidence": false
+      "transcript_excerpt": "This is absolutely incredible..."
     }
   ]
-}
-```
-
-### Re-score with different parameters
-
-```
-POST /v1/jobs/{job_id}/rescore
-Content-Type: application/json
-
-{
-  "top_n": 5,
-  "weights_override": {"energy_zscore": 0.3},
-  "keywords": ["breakthrough", "game changer"]
 }
 ```
 
@@ -157,23 +166,18 @@ Content-Type: application/json
 GET /v1/presets
 ```
 
-**Response:** `200 OK`
-```json
-{
-  "keyword_presets": ["default", "tech", "comedy", "news", "true_crime", "interview"]
-}
-```
-
-### Health & readiness
+### Health check
 
 ```
 GET /healthz    → 200 OK
 GET /readyz     → 200 OK or 503
 ```
 
+Full API docs: **https://highlight-extractor-thtb.onrender.com/docs**
+
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 src/highlight_extractor/
@@ -182,114 +186,45 @@ src/highlight_extractor/
 ├── diarization/       # pyannote.audio speaker diarization
 ├── alignment.py       # Merge transcript + diarization by timestamp
 ├── scoring/           # Feature extraction + composite scoring + NMS
-│   ├── features.py    # Sentiment, energy, pitch, keywords
-│   ├── rank.py        # Composite scoring + temporal NMS
-│   └── segment.py     # Candidate segment derivation
 ├── api/               # FastAPI app, job model, endpoints
-└── utils/             # Audio I/O, config, logging, settings
+├── utils/             # Audio I/O, config, logging, settings
+└── static/            # Web frontend (HTML/CSS/JS)
 ```
 
-### Scoring features
+### Scoring Features
 
-| Feature | Weight | Description |
-|---------|--------|-------------|
-| `sentiment_delta` | 0.25 | Max swing from neutral sentiment |
-| `sentiment_extremity` | 0.20 | Absolute sentiment peak |
-| `energy_zscore` | 0.15 | RMS energy relative to speaker average |
-| `pitch_variance` | 0.10 | F0 variance (emphasis proxy) |
-| `speech_rate_delta` | 0.10 | Words-per-second deviation from mean |
-| `keyword_density` | 0.10 | Matched keyword frequency |
-| `crosstalk_bonus` | 0.10 | Bonus for overlapping speech |
-| `asr_confidence_penalty` | 0.15 | Penalty for low-confidence ASR |
-
-Weights are configurable via `config/scoring_weights.yaml` (runtime reload, no redeploy).
+| Feature | Weight | What It Measures |
+|---------|--------|------------------|
+| Sentiment | 25% | Emotional intensity |
+| Energy | 15% | Voice volume relative to speaker average |
+| Keywords | 10% | Matched highlight trigger words |
+| Pitch | 10% | Voice emphasis (higher = more emphatic) |
+| Speech Rate | 10% | Speed changes (faster = more excited) |
+| Crosstalk | 10% | Overlapping speech (often a highlight) |
+| Confidence | 15% | Transcription reliability |
 
 ---
 
-## 🧪 Testing
+## Tech Stack
 
-```bash
-# Run all tests
-pytest -v
-
-# Fast unit tests only (CI suite)
-pytest -v -m "not slow"
-
-# Slow end-to-end tests
-pytest -v -m "slow"
-
-# Lint
-ruff check src/ tests/
-
-# Type check
-mypy src/ --ignore-missing-imports
-```
-
-**Current status:** 79 tests passing, 0 lint errors.
+- **Backend:** Python, FastAPI, faster-whisper, pyannote.audio
+- **Frontend:** HTML, CSS, JavaScript
+- **ML:** Whisper (transcription), pyannote (speaker detection), transformers (sentiment)
+- **Deployment:** Docker, Render
+- **Testing:** 79 tests (pytest)
 
 ---
 
-## 📊 Benchmarks
+## Status
 
-Run `python scripts/benchmark.py` to generate timing data across audio lengths:
+**Production ready.** Deployed at https://highlight-extractor-thtb.onrender.com
 
-| Duration | Speakers | Alignment | Features | Scoring | Total |
-|----------|----------|-----------|----------|---------|-------|
-| 1 min | 2 | ~2ms | ~15ms | ~1ms | ~20ms |
-| 5 min | 2 | ~5ms | ~40ms | ~2ms | ~50ms |
-| 10 min | 2 | ~8ms | ~75ms | ~3ms | ~90ms |
-
-Note: Excludes ML model inference (transcription/diarization) which dominates in production.
-
----
-
-## 📁 Project layout
-
-```
-├── src/highlight_extractor/   # Main package
-├── tests/                     # 79 tests (unit + integration)
-├── scripts/
-│   ├── run_pipeline.py        # CLI pipeline runner
-│   ├── demo_pipeline.py       # Demo with mocked ML models
-│   ├── benchmark.py           # Performance benchmarks
-│   └── evaluate.py            # Precision@10 evaluation
-├── benchmarks/
-│   ├── eval_set/              # Labeled evaluation data
-│   └── results/               # Benchmark + eval results
-├── config/
-│   ├── scoring_weights.yaml   # Tunable scoring weights
-│   └── keyword_presets.yaml   # Per-show keyword presets
-├── docs/                      # Design docs, roadmap, runbook
-├── Dockerfile                 # Multi-stage production build
-├── docker-compose.yml         # Local dev + production
-└── deploy/                    # Production docker-compose
-```
-
----
-
-## 📚 Documentation
-
-| Doc | What it covers |
-|-----|----------------|
-| [docs/01_PRD.md](docs/01_PRD.md) | Product requirements |
-| [docs/02_ARCHITECTURE.md](docs/02_ARCHITECTURE.md) | System design |
-| [docs/03_SCORING_DESIGN.md](docs/03_SCORING_DESIGN.md) | Scoring deep-dive |
-| [docs/04_ROADMAP.md](docs/04_ROADMAP.md) | Phased build plan |
-| [docs/05_TESTING_AND_BENCHMARKING.md](docs/05_TESTING_AND_BENCHMARKING.md) | Test strategy |
-| [docs/06_FAILURE_MODES.md](docs/06_FAILURE_MODES.md) | Operational runbook |
-| [docs/07_API_SPEC.md](docs/07_API_SPEC.md) | HTTP API specification |
-
----
-
-## 🎬 Status
-
-**All phases complete.** Full pipeline with:
-- ✅ Ingestion, transcription, diarization, alignment
-- ✅ Feature extraction + composite scoring + NMS
-- ✅ FastAPI async job API with rescore support
-- ✅ Per-show keyword presets (tech, comedy, news, true_crime, interview)
-- ✅ Multi-language support (Whisper + configurable models)
-- ✅ Webhook-based job completion notifications
-- ✅ 79 tests, benchmarks, evaluation baseline
-- ✅ Docker + CI/CD deployment ready
-- ✅ Configurable via environment variables + .env files
+- ✅ Web UI with drag-and-drop upload
+- ✅ Full pipeline: transcription → diarization → alignment → scoring
+- ✅ 6 keyword presets (tech, comedy, news, true crime, interview)
+- ✅ Real-time progress tracking
+- ✅ Mobile responsive design
+- ✅ API with documentation
+- ✅ 79 tests passing
+- ✅ Docker deployment
+- ✅ Free tier hosting on Render
