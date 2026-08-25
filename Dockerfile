@@ -18,9 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy only dependency files first (cache layer)
 COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install \
-    --resolver=backtracking \
-    -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # --- Production stage ---
 FROM python:3.11-slim AS production
