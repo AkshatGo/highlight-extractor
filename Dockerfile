@@ -32,11 +32,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy installed Python packages from builder
 COPY --from=builder /install /usr/local
 
-# Copy application code
+# Copy application code and install as package
 COPY src/ ./src/
 COPY config/ ./config/
 COPY scripts/ ./scripts/
 COPY .env.example .env.example
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
 
 # Create non-root user for security
 RUN groupadd -r highlight && useradd -r -g highlight -d /app highlight \
