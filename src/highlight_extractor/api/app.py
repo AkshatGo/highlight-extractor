@@ -11,7 +11,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from highlight_extractor.api.job_manager import ArtifactStore, JobManager
 from highlight_extractor.api.models import (
@@ -385,3 +386,21 @@ async def get_presets():
     """List available keyword presets."""
     presets = list_keyword_presets()
     return PresetsResponse(keyword_presets=presets)
+
+
+# ---------------------------------------------------------------------------
+# Frontend (static files)
+# ---------------------------------------------------------------------------
+
+_STATIC_DIR = Path(__file__).resolve().parents[3] / "static"
+if _STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def serve_frontend():
+    """Serve the frontend UI."""
+    index_path = _STATIC_DIR / "index.html"
+    if index_path.exists():
+        return HTMLResponse(content=index_path.read_text())
+    return HTMLResponse(content="<h1>Highlight Extractor</h1><p>Frontend not found. <a href='/docs'>View API docs</a></p>", status_code=200)

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Highlight Extractor</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <span class="icon">🎯</span>
+                <h1>Highlight Extractor</h1>
+            </div>
+            <p class="tagline">AI-powered highlight extraction from podcasts and talks</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section id="upload-section" class="card">
+            <h2>Upload Audio</h2>
+            <div id="drop-zone" class="drop-zone">
+                <div class="drop-content">
+                    <span class="drop-icon">📁</span>
+                    <p>Drag & drop your audio file here</p>
+                    <p class="drop-hint">or click to browse</p>
+                    <p class="formats">WAV, MP3, M4A, FLAC (max 500MB)</p>
+                </div>
+                <input type="file" id="file-input" accept=".wav,.mp3,.m4a,.flac" hidden>
+            </div>
+            
+            <div id="file-info" class="file-info hidden">
+                <span class="file-name"></span>
+                <span class="file-size"></span>
+                <button class="btn-remove" onclick="removeFile()">✕</button>
+            </div>
+
+            <!-- Options -->
+            <div class="options">
+                <div class="option-group">
+                    <label for="top_n">Highlights to return</label>
+                    <input type="number" id="top_n" value="10" min="1" max="50">
+                </div>
+                <div class="option-group">
+                    <label for="preset">Keyword preset</label>
+                    <select id="preset">
+                        <option value="default">Default</option>
+                        <option value="tech">Tech</option>
+                        <option value="comedy">Comedy</option>
+                        <option value="news">News</option>
+                        <option value="true_crime">True Crime</option>
+                        <option value="interview">Interview</option>
+                    </select>
+                </div>
+                <div class="option-group">
+                    <label for="speakers">Expected speakers (optional)</label>
+                    <input type="number" id="speakers" placeholder="Auto-detect" min="1" max="20">
+                </div>
+            </div>
+
+            <button id="upload-btn" class="btn-primary" disabled onclick="uploadFile()">
+                Extract Highlights
+            </button>
+        </section>
+
+        <!-- Progress Section -->
+        <section id="progress-section" class="card hidden">
+            <h2>Processing</h2>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-status" id="progress-status">Queued...</div>
+            </div>
+            <div class="stage-list" id="stage-list">
+                <div class="stage" data-stage="QUEUED">
+                    <span class="stage-icon">⏳</span>
+                    <span class="stage-name">Queued</span>
+                </div>
+                <div class="stage" data-stage="INGESTING">
+                    <span class="stage-icon">📥</span>
+                    <span class="stage-name">Ingesting</span>
+                </div>
+                <div class="stage" data-stage="TRANSCRIBING">
+                    <span class="stage-icon">🎙️</span>
+                    <span class="stage-name">Transcribing</span>
+                </div>
+                <div class="stage" data-stage="DIARIZING">
+                    <span class="stage-icon">👥</span>
+                    <span class="stage-name">Diarizing</span>
+                </div>
+                <div class="stage" data-stage="ALIGNING">
+                    <span class="stage-icon">🔗</span>
+                    <span class="stage-name">Aligning</span>
+                </div>
+                <div class="stage" data-stage="EXTRACTING_FEATURES">
+                    <span class="stage-icon">📊</span>
+                    <span class="stage-name">Features</span>
+                </div>
+                <div class="stage" data-stage="SCORING">
+                    <span class="stage-icon">⭐</span>
+                    <span class="stage-name">Scoring</span>
+                </div>
+                <div class="stage" data-stage="DONE">
+                    <span class="stage-icon">✅</span>
+                    <span class="stage-name">Done</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-section" class="card hidden">
+            <div class="results-header">
+                <h2>Highlights</h2>
+                <div class="results-meta">
+                    <span id="audio-duration"></span>
+                    <span id="num-speakers"></span>
+                </div>
+            </div>
+            
+            <div id="quality-warning" class="warning hidden"></div>
+            
+            <div id="highlights-list" class="highlights-list"></div>
+            
+            <div class="results-actions">
+                <button class="btn-secondary" onclick="downloadResults()">📥 Download JSON</button>
+                <button class="btn-secondary" onclick="resetApp()">🔄 Process Another</button>
+            </div>
+        </section>
+
+        <!-- Error Section -->
+        <section id="error-section" class="card hidden">
+            <h2>❌ Error</h2>
+            <p id="error-message"></p>
+            <button class="btn-secondary" onclick="resetApp()">Try Again</button>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <p>Built with ❤️ using faster-whisper, pyannote.audio, and FastAPI</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

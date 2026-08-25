@@ -36,6 +36,7 @@ COPY --from=builder /install /usr/local
 COPY src/ ./src/
 COPY config/ ./config/
 COPY scripts/ ./scripts/
+COPY static/ ./static/
 COPY .env.example .env.example
 COPY pyproject.toml .
 RUN pip install --no-cache-dir .
