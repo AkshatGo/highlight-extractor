@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: highlight-extractor
+    runtime: docker
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: HF_TOKEN
+        sync: false
+      - key: WHISPER_MODEL
+        value: base
+      - key: DIARIZATION_MODEL
+        value: pyannote/speaker-diarization-3.1
+      - key: LOG_LEVEL
+        value: INFO
+      - key: WORKERS
+        value: "1"
+    healthCheckPath: /healthz
+    autoDeploy: true

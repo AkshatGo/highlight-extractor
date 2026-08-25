@@ -64,15 +64,25 @@ EXPOSE 8000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/healthz')" || exit 1
 
-# Run with gunicorn (production) or uvicorn (dev override)
-CMD ["gunicorn", "highlight_extractor.api.app:app", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "2", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--timeout", "120", \
-     "--graceful-timeout", "30", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-", \
-     "--log-level", "info"]
+# Start script that respects $PORT (Render, Railway, etc.)
+COPY <<'STARTUP' /app/startup.sh
+#!/bin/bash
+PORT=${PORT:-8000}
+exec gunicorn highlight_extractor.api.app:app \
+     --bind 0.0.0.0:$PORT \
+     --workers 1 \
+     --worker-class uvicorn.workers.UvicornWorker \
+     --timeout 120 \
+     --graceful-timeout 30 \
+     --access-logfile - \
+     --error-logfile - \
+     --log-level info
+STARTUP
+RUN chmod +x /app/startup.sh
+
+# Default port (overridden by platform)
+ENV PORT=8000
+
+CMD ["/app/startup.sh"]
