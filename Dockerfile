@@ -1,9 +1,6 @@
 # ============================================================
 # Multi-stage Dockerfile for Highlight Extraction Service
 # ============================================================
-# Stage 1: Build dependencies
-# Stage 2: Production runtime (smaller image)
-# ============================================================
 
 # --- Build stage ---
 FROM python:3.11-slim AS builder
@@ -39,6 +36,21 @@ COPY --from=builder /install /usr/local
 COPY src/ ./src/
 COPY config/ ./config/
 COPY scripts/ ./scripts/
+COPY .env.example .env.example
+
+# Create startup script (as root, before switching user)
+RUN printf '#!/bin/bash\n\
+PORT=${PORT:-8000}\n\
+exec gunicorn highlight_extractor.api.app:app \\\n\
+     --bind 0.0.0.0:$PORT \\\n\
+     --workers 1 \\\n\
+     --worker-class uvicorn.workers.UvicornWorker \\\n\
+     --timeout 120 \\\n\
+     --graceful-timeout 30 \\\n\
+     --access-logfile - \\\n\
+     --error-logfile - \\\n\
+     --log-level info\n' > /app/startup.sh && \
+    chmod +x /app/startup.sh
 
 # Create non-root user for security
 RUN groupadd -r highlight && useradd -r -g highlight -d /app highlight \
@@ -46,9 +58,6 @@ RUN groupadd -r highlight && useradd -r -g highlight -d /app highlight \
     && chown -R highlight:highlight /app /tmp/highlight_artifacts /app/artifacts
 
 USER highlight
-
-# Copy .env.example as a reference (HF_TOKEN must be set at runtime)
-COPY .env.example .env.example
 
 # Environment defaults (override at runtime)
 ENV HOST=0.0.0.0 \
@@ -66,24 +75,5 @@ EXPOSE 8000
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT:-8000}/healthz')" || exit 1
-
-# Start script that respects $PORT (Render, Railway, etc.)
-COPY <<'STARTUP' /app/startup.sh
-#!/bin/bash
-PORT=${PORT:-8000}
-exec gunicorn highlight_extractor.api.app:app \
-     --bind 0.0.0.0:$PORT \
-     --workers 1 \
-     --worker-class uvicorn.workers.UvicornWorker \
-     --timeout 120 \
-     --graceful-timeout 30 \
-     --access-logfile - \
-     --error-logfile - \
-     --log-level info
-STARTUP
-RUN chmod +x /app/startup.sh
-
-# Default port (overridden by platform)
-ENV PORT=8000
 
 CMD ["/app/startup.sh"]
