@@ -4,6 +4,8 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from highlight_extractor.utils.settings import load_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +28,7 @@ def _create_model(device: str = "auto", compute_type: str = "float16"):
     """Create a WhisperModel with the given device/compute_type."""
     from faster_whisper import WhisperModel
 
-    return WhisperModel("base", device=device, compute_type=compute_type)
+    return WhisperModel(load_settings().whisper_model, device=device, compute_type=compute_type)
 
 
 def _build_result(segments, info, model_version: str) -> TranscriptionResult:
@@ -46,12 +48,12 @@ def _transcribe_with_fallback(audio_path: str | Path) -> TranscriptionResult:
     try:
         model = _create_model(device="auto", compute_type="float16")
         segments, info = model.transcribe(str(audio_path), word_timestamps=True)
-        return _build_result(segments, info, "faster-whisper-base-gpu")
+        return _build_result(segments, info, f"faster-whisper-{load_settings().whisper_model}-gpu")
     except (RuntimeError, OSError) as e:
         logger.warning("GPU transcription failed (%s), falling back to CPU (int8)", e)
         model = _create_model(device="cpu", compute_type="int8")
         segments, info = model.transcribe(str(audio_path), word_timestamps=True)
-        return _build_result(segments, info, "faster-whisper-base-cpu")
+        return _build_result(segments, info, f"faster-whisper-{load_settings().whisper_model}-cpu")
 
 
 def run_transcription(audio_path: str | Path) -> TranscriptionResult:

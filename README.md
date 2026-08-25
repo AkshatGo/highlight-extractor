@@ -36,6 +36,17 @@ config/
 └── scoring_weights.yaml  # Tunable scoring weights (not in code)
 ```
 
+## Setup: model access (required before first run)
+
+1. Copy `.env.example` to `.env`.
+2. **Accept the gated pyannote models** on HuggingFace (free account needed):
+   - [pyannote/speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1)
+   - plus the segmentation/embedding models it links to from that page
+3. Create a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) (read scope is enough) and set `HF_TOKEN` in `.env`.
+4. Model weights download automatically on first run (Whisper ~150 MB for `base`, pyannote ~50 MB). Set `WHISPER_MODEL=small` or `medium` in `.env` for better accuracy at the cost of speed.
+
+No `HF_TOKEN` is needed for transcription only; diarization will fail without it.
+
 ## Quickstart
 
 ```bash

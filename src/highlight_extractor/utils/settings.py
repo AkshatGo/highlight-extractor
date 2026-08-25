@@ -6,6 +6,27 @@ Production deployments set these via .env, Docker env, or process manager.
 
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
+
+
+def _load_dotenv(path: str | Path = ".env") -> None:
+    """Load KEY=VALUE pairs from a .env file into os.environ.
+
+    Existing environment variables take precedence over .env values.
+    Missing file is a no-op. Minimal parser: no export/import/quoting magic.
+    """
+    p = Path(path)
+    if not p.is_file():
+        return
+    for line in p.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
 
 
 @dataclass(frozen=True)
@@ -46,6 +67,9 @@ class Settings:
     whisper_model: str = "base"
     diarization_model: str = "pyannote/speaker-diarization-3.1"
 
+    # HuggingFace access token (required for pyannote gated models)
+    hf_token: str | None = None
+
     # Worker
     pipeline_timeout_s: int = 7200  # 2 hours max per job
 
@@ -72,8 +96,10 @@ def load_settings() -> Settings:
         SCORING_WEIGHTS   → scoring_weights_path (default: None → config/scoring_weights.yaml)
         WHISPER_MODEL     → whisper_model (default: base)
         DIARIZATION_MODEL → diarization_model (default: pyannote/speaker-diarization-3.1)
+        HF_TOKEN          → hf_token (default: None; REQUIRED for diarization)
         PIPELINE_TIMEOUT  → pipeline_timeout_s (default: 7200)
     """
+    _load_dotenv()
 
     def _list_env(key: str, default: str) -> list[str]:
         val = os.environ.get(key, "")
@@ -96,5 +122,6 @@ def load_settings() -> Settings:
         scoring_weights_path=os.environ.get("SCORING_WEIGHTS"),
         whisper_model=os.environ.get("WHISPER_MODEL", "base"),
         diarization_model=os.environ.get("DIARIZATION_MODEL", "pyannote/speaker-diarization-3.1"),
+        hf_token=os.environ.get("HF_TOKEN") or None,
         pipeline_timeout_s=int(os.environ.get("PIPELINE_TIMEOUT", "7200")),
     )

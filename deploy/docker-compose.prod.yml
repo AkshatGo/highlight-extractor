@@ -23,11 +23,14 @@ services:
       - ARTIFACT_STORE=/app/artifacts
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - WHISPER_MODEL=${WHISPER_MODEL:-base}
+      - DIARIZATION_MODEL=${DIARIZATION_MODEL:-pyannote/speaker-diarization-3.1}
+      - HF_TOKEN=${HF_TOKEN:-}
       - PIPELINE_TIMEOUT=${PIPELINE_TIMEOUT:-7200}
     volumes:
       - artifact_data:/app/artifacts
       - model_cache:/root/.cache/huggingface
       - model_cache_whisper:/root/.cache/whisper
+      - hf_token_cache:/home/highlight/.cache/huggingface
     restart: unless-stopped
     deploy:
       resources:
@@ -54,4 +57,6 @@ volumes:
   model_cache:
     driver: local
   model_cache_whisper:
+    driver: local
+  hf_token_cache:
     driver: local

@@ -46,12 +46,17 @@ RUN groupadd -r highlight && useradd -r -g highlight -d /app highlight \
 
 USER highlight
 
+# Copy .env.example as a reference (HF_TOKEN must be set at runtime)
+COPY .env.example .env.example
+
 # Environment defaults (override at runtime)
 ENV HOST=0.0.0.0 \
     PORT=8000 \
     WORKERS=2 \
     LOG_LEVEL=INFO \
     ARTIFACT_STORE=/app/artifacts \
+    WHISPER_MODEL=base \
+    DIARIZATION_MODEL=pyannote/speaker-diarization-3.1 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 

@@ -3,6 +3,8 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from highlight_extractor.utils.settings import load_settings
+
 
 @dataclass
 class SpeakerTurn:
@@ -37,9 +39,10 @@ def run_diarization(
     from pyannote.audio import Pipeline
     from pyannote.core import Annotation
 
+    settings = load_settings()
     pipeline = Pipeline.from_pretrained(
-        "pyannote/speaker-diarization-3.1",
-        use_auth_token=None,
+        settings.diarization_model,
+        token=settings.hf_token,
     )
 
     if expected_num_speakers is not None:
@@ -56,7 +59,7 @@ def run_diarization(
     diarization: Annotation = pipeline(str(audio_path))
 
     result = DiarizationResult(
-        model_version="pyannote-speaker-diarization-3.1",
+        model_version=f"pyannote-{settings.diarization_model}",
     )
 
     seen_speakers: set = set()
