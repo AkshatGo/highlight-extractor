@@ -1,9 +1,12 @@
-# Core pipeline
+# Core pipeline — pinned versions to avoid dependency conflicts
 faster-whisper>=1.0.0
-pyannote.audio>=3.0.0
+pyannote.audio>=3.0.0,<4.0.0
 librosa>=0.10.0
-numpy<2.0.0
+numpy>=1.24.0,<3.0.0
 scipy>=1.10.0
+
+# ONNX runtime — pin to avoid conflict with numba/llvmlite
+onnxruntime>=1.16.0,<2.0.0
 
 # API
 fastapi>=0.100.0
@@ -22,10 +25,5 @@ torch>=2.0.0
 # Config
 pyyaml>=6.0
 
-# Dev / Testing
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-httpx>=0.24.0
-ruff>=0.4.0
-mypy>=1.10.0
+# Server
 gunicorn>=22.0.0
