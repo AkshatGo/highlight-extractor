@@ -25,6 +25,45 @@ def test_get_nonexistent_job():
     assert detail["code"] == "job_not_found"
 
 
+def test_create_job_returns_202_with_job_id():
+    """POST /v1/jobs with a valid WAV file should return 202 and a job_id."""
+    import io
+
+    import numpy as np
+    import soundfile as sf
+
+    # Generate a short silent WAV in memory
+    sr = 16000
+    duration = 5
+    audio = np.zeros(sr * duration, dtype=np.float32)
+    buf = io.BytesIO()
+    sf.write(buf, audio, sr, format="WAV")
+    buf.seek(0)
+
+    response = client.post(
+        "/v1/jobs",
+        files={"file": ("test.wav", buf, "audio/wav")},
+        data={"top_n": 5},
+    )
+    assert response.status_code == 202
+    body = response.json()
+    assert "job_id" in body
+    assert body["job_id"] is not None
+    assert len(body["job_id"]) > 0
+
+
+def test_create_job_rejects_unsupported_format():
+    """POST /v1/jobs with a .txt file should return 400."""
+    response = client.post(
+        "/v1/jobs",
+        files={"file": ("readme.txt", b"hello", "text/plain")},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    detail = data.get("detail") or data.get("error")
+    assert detail["code"] == "invalid_audio_format"
+
+
 def test_get_highlights_before_done():
     """GET highlights on a non-DONE job should return 409."""
     # Submit a job (fileless simulation — just check the error path)
