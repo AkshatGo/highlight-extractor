@@ -64,6 +64,92 @@ def test_create_job_rejects_unsupported_format():
     assert detail["code"] == "invalid_audio_format"
 
 
+def test_rescore_nonexistent_job():
+    """POST /v1/jobs/{id}/rescore on a missing job should return 404."""
+    response = client.post(
+        "/v1/jobs/nonexistent-id/rescore",
+        json={"top_n": 5},
+    )
+    assert response.status_code == 404
+    data = response.json()
+    detail = data.get("detail") or data.get("error")
+    assert detail["code"] == "job_not_found"
+
+
+def test_rescore_before_features_extracted():
+    """POST /v1/jobs/{id}/rescore on a queued job should return 409."""
+    with patch("highlight_extractor.api.app.manager") as mock_mgr:
+        mock_record = MagicMock()
+        mock_record.status = JobStatus.QUEUED
+        mock_record._features = None
+        mock_mgr.get_job.return_value = mock_record
+
+        response = client.post(
+            "/v1/jobs/test-id/rescore",
+            json={"top_n": 3},
+        )
+        assert response.status_code == 409
+        data = response.json()
+        detail = data.get("detail") or data.get("error")
+        assert detail["code"] == "job_not_ready"
+
+
+def test_rescore_with_mocked_features():
+    """POST /v1/jobs/{id}/rescore should return 202 with a new job_id."""
+    from highlight_extractor.scoring.features import SegmentFeatures
+
+    mock_features = [
+        SegmentFeatures(
+            segment_id=0,
+            start_s=0.0,
+            end_s=5.0,
+            speaker="SPEAKER_00",
+            sentiment_delta=0.3,
+            energy_zscore=1.2,
+        ),
+    ]
+
+    mock_aligned = MagicMock()
+    mock_aligned.segments = [MagicMock(segment_id=0, text="hello world")]
+
+    with patch("highlight_extractor.api.app.manager") as mock_mgr:
+        mock_record = MagicMock()
+        mock_record.status = JobStatus.DONE
+        mock_record._features = mock_features
+        mock_record._aligned = mock_aligned
+        mock_record._audio = None
+        mock_record._sr = None
+        mock_record._duration_s = 60.0
+        mock_record._transcription = None
+        mock_record._diarization = None
+        mock_record.audio_path = "/tmp/fake.wav"
+        mock_record.top_n = 15
+        mock_record.min_clip_s = 12.0
+        mock_record.max_clip_s = 90.0
+        mock_mgr.get_job.return_value = mock_record
+
+        # The new job record returned after submit
+        new_record = MagicMock()
+        new_record.status = JobStatus.DONE
+        new_record.created_at = "2026-01-01T00:00:00Z"
+
+        def _submit(**kwargs):
+            return "new-job-id"
+
+        mock_mgr.submit.side_effect = _submit
+        mock_mgr.get_job.side_effect = lambda jid: new_record if jid == "new-job-id" else mock_record
+
+        response = client.post(
+            "/v1/jobs/test-id/rescore",
+            json={"top_n": 5, "weights_override": {"energy_zscore": 0.3}},
+        )
+        assert response.status_code == 202
+        body = response.json()
+        assert body["job_id"] == "new-job-id"
+        assert body["source_job_id"] == "test-id"
+        assert body["status"] == "DONE"
+
+
 def test_get_highlights_before_done():
     """GET highlights on a non-DONE job should return 409."""
     # Submit a job (fileless simulation — just check the error path)
